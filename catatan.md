@@ -1,0 +1,1 @@
+keamanan ketika waktu pengerjaan soal,data peserta hilang di database harusnya dia langsung keluar dari soal, karena tidak terdeteksi lagi oleh server 
