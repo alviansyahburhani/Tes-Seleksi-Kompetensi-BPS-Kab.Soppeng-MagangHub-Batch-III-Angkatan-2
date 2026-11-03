@@ -35,4 +35,16 @@ export interface SavedExamSession extends IdentitasPeserta {
   endTimeMs: number;
 }
 
+export interface ParticipantLobbyStatus extends IdentitasPeserta {
+  rowNumber: number;
+  statusUjian: string;
+  statusWawancara: string;
+  kompetensiApproved: boolean;
+  kompetensiSelesai: boolean;
+  sedangUjian: boolean;
+  wawancaraApproved: boolean;
+  resetRequestStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'NONE';
+}
+
+
 

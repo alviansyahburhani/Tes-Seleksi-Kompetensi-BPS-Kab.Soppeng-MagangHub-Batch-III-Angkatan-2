@@ -23,7 +23,7 @@ export default function ConfirmSubmitModal({
         {/* Bar Atas Modal */}
         <div className="bg-[#8CC63F] border-b-4 border-slate-950 px-6 py-3 flex items-center justify-between">
           <span className="font-black text-slate-950 uppercase tracking-wider text-sm">
-            ✓ Konfirmasi Pengumpulan
+            Konfirmasi Pengumpulan
           </span>
           <span className="bg-slate-950 text-white text-xs font-black px-2 py-0.5">
             FINAL SUBMIT

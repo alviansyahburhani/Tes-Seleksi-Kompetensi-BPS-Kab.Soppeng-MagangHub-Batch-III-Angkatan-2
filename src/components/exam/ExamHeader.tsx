@@ -56,8 +56,8 @@ export default function ExamHeader({
             {/* Kotak Timer */}
             <div
               className={`px-3.5 py-1.5 border-3 border-slate-950 shadow-[4px_4px_0px_0px_#0f172a] flex items-center gap-2 ${timeLeft < 300
-                  ? 'bg-red-500 text-white animate-pulse'
-                  : 'bg-[#F7941D] text-slate-950'
+                ? 'bg-red-500 text-white animate-pulse'
+                : 'bg-[#F7941D] text-slate-950'
                 }`}
             >
               <span className="text-[10px] font-black uppercase tracking-wider block">
@@ -74,7 +74,7 @@ export default function ExamHeader({
               disabled={loading}
               className="bg-[#8CC63F] hover:bg-[#9bd64d] disabled:opacity-50 text-slate-950 text-xs md:text-sm font-black uppercase tracking-wider px-4 py-2.5 border-3 border-slate-950 shadow-[4px_4px_0px_0px_#0f172a] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_#0f172a] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all cursor-pointer"
             >
-              {loading ? 'Mengirim...' : '✓ Selesai & Kumpul'}
+              {loading ? 'Mengirim...' : 'Selesai & Kumpul'}
             </button>
           </div>
         </div>

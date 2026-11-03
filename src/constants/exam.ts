@@ -1,5 +1,7 @@
 export const EXAM_DURATION_SECONDS = 60 * 60; // 60 Menit
 export const EXAM_SESSION_STORAGE_KEY = 'bps_skd_session_v1';
+export const PARTICIPANT_LOBBY_STORAGE_KEY = 'bps_skd_lobby_v1';
+export const TERMS_ACCEPTED_STORAGE_KEY = 'bps_skd_terms_accepted_v1';
 
 export const POSISI_OPTIONS = [
   'Staff Administrasi',
