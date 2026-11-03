@@ -86,19 +86,6 @@ Saat peserta menyelesaikan ujian, seluruh jawaban yang ia kerjakan (baik soal `U
 Susunan kolom di masing-masing tab (isi sel di bawah kolom soal murni berisi jawaban peserta):
 `Waktu Selesai | Nama Peserta | Email | Posisi Dilamar | Alamat Domisili | Total Pelanggaran | Sisa Waktu | Soal 1 (UMUM) | Soal 2 (...) | ...`
 
----
-
-## ⚙️ 5. Konfigurasi `.env.local` & Deployment Production (Vercel)
-
-Buat file `.env.local` di direktori utama project (atau tambahkan di **Vercel → Project Settings → Environment Variables**):
-
-```env
-GOOGLE_SHEET_ID="ID_GOOGLE_SPREADSHEET_ANDA"
-GOOGLE_CLIENT_EMAIL="nama-service-account@project-id.iam.gserviceaccount.com"
-GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
-ADMIN_PIN="bps7312"
-```
-
 ### Cara Menjalankan Build Production Secara Lokal:
 ```bash
 npm run build
