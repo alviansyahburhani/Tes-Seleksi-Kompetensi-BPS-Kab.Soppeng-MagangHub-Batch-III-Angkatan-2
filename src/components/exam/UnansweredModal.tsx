@@ -29,7 +29,7 @@ export default function UnansweredModal({ message, onClose }: UnansweredModalPro
             onClick={onClose}
             className="w-full bg-[#8CC63F] hover:bg-[#9bd64d] text-slate-950 font-black uppercase tracking-wider py-3 px-6 border-3 border-slate-950 shadow-[5px_5px_0px_0px_#0f172a] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[3px_3px_0px_0px_#0f172a] transition-all cursor-pointer"
           >
-            Kerjakan Soal Sekarang →
+            Kerjakan Soal Sekarang
           </button>
         </div>
       </div>

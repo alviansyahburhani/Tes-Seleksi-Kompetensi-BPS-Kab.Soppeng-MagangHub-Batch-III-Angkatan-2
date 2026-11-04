@@ -4,12 +4,21 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   EXAM_DURATION_SECONDS,
   EXAM_SESSION_STORAGE_KEY,
+  PARTICIPANT_LOBBY_STORAGE_KEY,
+  TERMS_ACCEPTED_STORAGE_KEY,
   POSISI_OPTIONS,
 } from '@/constants/exam';
-import { DataPraktik, SavedExamSession, Soal, TipeSoal } from '@/types/exam';
+import {
+  DataPraktik,
+  ParticipantLobbyStatus,
+  SavedExamSession,
+  Soal,
+  TipeSoal,
+} from '@/types/exam';
 import { formatTime, isSoalMatchPosisi, shuffleArray } from '@/utils/examHelper';
 import { playViolationAlarm, stopViolationAlarm } from '@/utils/mediaHelper';
 import LoginView from '@/components/exam/LoginView';
+import ParticipantLobbyView from '@/components/exam/ParticipantLobbyView';
 import FinishedView from '@/components/exam/FinishedView';
 import ViolationModal from '@/components/exam/ViolationModal';
 import UnansweredModal from '@/components/exam/UnansweredModal';
@@ -19,11 +28,19 @@ import QuestionCard from '@/components/exam/QuestionCard';
 import QuestionNavigationMap from '@/components/exam/QuestionNavigationMap';
 
 export default function UjianSKD() {
-  // State identitas peserta & login
+  // State identitas peserta & alur tahapan (Daftar Hadir -> Lobby -> Ujian -> Selesai)
+  const [isInLobby, setIsInLobby] = useState(false);
+  const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
+  const [lobbyStatus, setLobbyStatus] = useState<ParticipantLobbyStatus | null>(null);
+  const [registering, setRegistering] = useState(false);
+  const [refreshingLobby, setRefreshingLobby] = useState(false);
+  const [lobbyError, setLobbyError] = useState('');
+
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [namaPeserta, setNamaPeserta] = useState('');
   const [emailPeserta, setEmailPeserta] = useState('');
-  const [posisiDilamar, setPosisiDilamar] = useState<string>(POSISI_OPTIONS[0]);
+  const [teleponPeserta, setTeleponPeserta] = useState('');
+  const [posisiDilamar, setPosisiDilamar] = useState<string>('');
   const [alamatPeserta, setAlamatPeserta] = useState('');
   const [loginError, setLoginError] = useState('');
 
@@ -57,7 +74,7 @@ export default function UjianSKD() {
   const violationsRef = useRef(violations);
   const timeLeftRef = useRef(timeLeft);
   const monitoringRowRef = useRef<number | null>(monitoringRowNumber);
-  const identitasRef = useRef({ namaPeserta, emailPeserta, posisiDilamar, alamatPeserta });
+  const identitasRef = useRef({ namaPeserta, emailPeserta, teleponPeserta, posisiDilamar, alamatPeserta });
   const activeSoalTipeRef = useRef<TipeSoal>('PG');
   const lastSyncedTerjawabCountRef = useRef<number>(0);
   const showWarningRef = useRef(showWarning);
@@ -95,15 +112,15 @@ export default function UjianSKD() {
   }, [monitoringRowNumber]);
 
   useEffect(() => {
-    identitasRef.current = { namaPeserta, emailPeserta, posisiDilamar, alamatPeserta };
-  }, [namaPeserta, emailPeserta, posisiDilamar, alamatPeserta]);
+    identitasRef.current = { namaPeserta, emailPeserta, teleponPeserta, posisiDilamar, alamatPeserta };
+  }, [namaPeserta, emailPeserta, teleponPeserta, posisiDilamar, alamatPeserta]);
 
   useEffect(() => {
     const active = soalList[currentIndex];
     activeSoalTipeRef.current = active?.tipe || 'PG';
   }, [soalList, currentIndex]);
 
-  // 1. Pulihkan sesi ujian dari localStorage (jika ada) & muat bank soal dari server bila belum ada di sesi
+  // 1. Pulihkan sesi ujian atau sesi lobby dari localStorage & muat bank soal
   useEffect(() => {
     let hasRestoredSoalFromSession = false;
 
@@ -122,6 +139,7 @@ export default function UjianSKD() {
 
             setNamaPeserta(parsed.namaPeserta || '');
             setEmailPeserta(parsed.emailPeserta || '');
+            setTeleponPeserta(parsed.teleponPeserta || '');
             setPosisiDilamar(parsed.posisiDilamar || POSISI_OPTIONS[0]);
             setAlamatPeserta(parsed.alamatPeserta || '');
             setSoalList(parsed.soalList || []);
@@ -142,11 +160,31 @@ export default function UjianSKD() {
           }
         }
       }
+
+      // Jika tidak sedang mengerjakan soal, cek apakah sudah pernah isi Daftar Hadir (tersimpan di Lobby)
+      if (!hasRestoredSoalFromSession) {
+        const savedLobby = localStorage.getItem(PARTICIPANT_LOBBY_STORAGE_KEY);
+        const termsAccepted = localStorage.getItem(TERMS_ACCEPTED_STORAGE_KEY) === 'true';
+        setHasAcceptedTerms(termsAccepted);
+
+        if (savedLobby) {
+          const parsedLobby: ParticipantLobbyStatus = JSON.parse(savedLobby);
+          if (parsedLobby && parsedLobby.namaPeserta && parsedLobby.emailPeserta) {
+            setNamaPeserta(parsedLobby.namaPeserta);
+            setEmailPeserta(parsedLobby.emailPeserta);
+            setTeleponPeserta(parsedLobby.teleponPeserta || '');
+            setPosisiDilamar(parsedLobby.posisiDilamar || '');
+            setAlamatPeserta(parsedLobby.alamatPeserta || '');
+            setMonitoringRowNumber(parsedLobby.rowNumber || null);
+            setLobbyStatus(parsedLobby);
+            setIsInLobby(true);
+          }
+        }
+      }
     } catch {
       // Abaikan jika gagal membaca localStorage
     }
 
-    // Jika peserta sedang melanjutkan sesi ujian yang sudah memiliki daftar soal, tidak perlu panggil /api/soal lagi
     if (hasRestoredSoalFromSession) return;
 
     async function fetchSoal() {
@@ -182,6 +220,7 @@ export default function UjianSKD() {
         isFinished,
         namaPeserta,
         emailPeserta,
+        teleponPeserta,
         posisiDilamar,
         alamatPeserta,
         soalList,
@@ -201,6 +240,7 @@ export default function UjianSKD() {
     isFinished,
     namaPeserta,
     emailPeserta,
+    teleponPeserta,
     posisiDilamar,
     alamatPeserta,
     soalList,
@@ -211,6 +251,24 @@ export default function UjianSKD() {
     monitoringRowNumber,
     endTimeMs,
   ]);
+
+  // Helper untuk keluar dari ujian secara otomatis apabila data peserta dihapus dari spreadsheet oleh Admin
+  const forceEjectMissingParticipant = useCallback(() => {
+    stopViolationAlarm();
+    localStorage.removeItem(EXAM_SESSION_STORAGE_KEY);
+    localStorage.removeItem(PARTICIPANT_LOBBY_STORAGE_KEY);
+    localStorage.removeItem(TERMS_ACCEPTED_STORAGE_KEY);
+    setIsLoggedIn(false);
+    setIsInLobby(false);
+    setHasAcceptedTerms(false);
+    setIsFinished(false);
+    setLobbyStatus(null);
+    setMonitoringRowNumber(null);
+    setEndTimeMs(null);
+    setLoginError(
+      'Sesi Anda telah dihentikan secara otomatis karena data kehadiran Anda tidak lagi ditemukan pada database Monitoring Server.'
+    );
+  }, []);
 
   // 3.A. Validasi sebelum membuka Pop-up Konfirmasi Pengumpulan
   const handleRequestSubmit = () => {
@@ -267,6 +325,20 @@ export default function UjianSKD() {
       const json = await res.json();
       if (json.success) {
         localStorage.removeItem(EXAM_SESSION_STORAGE_KEY);
+        // Update status di Lobby bahwa kompetensi sudah selesai
+        setLobbyStatus((prev) => {
+          if (!prev) return prev;
+          const updated: ParticipantLobbyStatus = {
+            ...prev,
+            kompetensiSelesai: true,
+            sedangUjian: false,
+            statusUjian: `SELESAI (${terjawabCount}/${soalListRef.current.length})`,
+          };
+          try {
+            localStorage.setItem(PARTICIPANT_LOBBY_STORAGE_KEY, JSON.stringify(updated));
+          } catch {}
+          return updated;
+        });
         setIsFinished(true);
       } else {
         alert('Gagal mengirim jawaban: ' + json.error);
@@ -276,9 +348,10 @@ export default function UjianSKD() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [terjawabCount]);
 
-  // 4. Timer Countdown + Sinkronisasi Sisa Waktu ke Sheet Monitoring_Peserta setiap 60 detik
+  // 4. Timer Countdown + Sinkronisasi Sisa Waktu ke Sheet Monitoring_Peserta setiap 2 menit (120 detik)
+  //    Sekaligus memeriksa apakah data peserta masih ada di database (jika dihapus, otomatis keluar dari soal)
   useEffect(() => {
     if (!isLoggedIn || isFinished) return;
     const timer = setInterval(() => {
@@ -289,7 +362,8 @@ export default function UjianSKD() {
           return 0;
         }
         const nextTime = prev - 1;
-        if (nextTime % 60 === 0 && monitoringRowRef.current) {
+        // Sinkronisasi sisa waktu setiap 2 menit (120 detik) agar tidak membebani Google Sheets API
+        if (nextTime % 120 === 0 && monitoringRowRef.current) {
           const currentTerjawab = Object.values(jawabanRef.current).filter(
             (v) => v && v.trim() !== ''
           ).length;
@@ -307,15 +381,21 @@ export default function UjianSKD() {
               totalSoal: soalListRef.current.length,
               statusUjian: 'SEDANG MENGERJAKAN',
             }),
-          }).catch(() => {});
+          })
+            .then(async (res) => {
+              if (res.status === 404) {
+                forceEjectMissingParticipant();
+              }
+            })
+            .catch(() => {});
         }
         return nextTime;
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [isLoggedIn, isFinished, submitUjian]);
+  }, [isLoggedIn, isFinished, submitUjian, forceEjectMissingParticipant]);
 
-  // 4.5. Sinkronisasi ke Monitoring_Peserta HANYA jika jumlah soal terjawab (terjawabCount) berubah
+  // 4.5. Sinkronisasi ke Monitoring_Peserta HANYA jika jumlah soal terjawab (terjawabCount) berubah (Debounce 5 detik)
   useEffect(() => {
     if (!isLoggedIn || isFinished || !monitoringRowNumber) return;
     if (terjawabCount === lastSyncedTerjawabCountRef.current) return;
@@ -334,11 +414,24 @@ export default function UjianSKD() {
           totalSoal: soalList.length,
           statusUjian: 'SEDANG MENGERJAKAN',
         }),
-      }).catch(() => {});
-    }, 3000);
+      })
+        .then((res) => {
+          if (res.status === 404) {
+            forceEjectMissingParticipant();
+          }
+        })
+        .catch(() => {});
+    }, 5000);
 
     return () => clearTimeout(syncTimeout);
-  }, [terjawabCount, isLoggedIn, isFinished, monitoringRowNumber, soalList.length]);
+  }, [
+    terjawabCount,
+    isLoggedIn,
+    isFinished,
+    monitoringRowNumber,
+    soalList.length,
+    forceEjectMissingParticipant,
+  ]);
 
   // 5. Deteksi Pindah Tab / VisibilityChange (Silent bypass saat di soal DESKRIPSI atau PRAKTIK)
   useEffect(() => {
@@ -353,8 +446,6 @@ export default function UjianSKD() {
           return;
         }
 
-        // Jika pop-up peringatan masih terbuka (belum di-klik "Saya Mengerti") atau belum lewat jeda 8 detik,
-        // bunyikan alarm saja tanpa melakukan spam request ke Google Sheets API
         const now = Date.now();
         if (showWarningRef.current || now - lastViolationLogTimeRef.current < 8000) {
           playViolationAlarm();
@@ -391,17 +482,222 @@ export default function UjianSKD() {
     };
   }, [isLoggedIn, isFinished, namaPeserta, emailPeserta, posisiDilamar]);
 
-  // Handler mulai ujian
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // =========================================================================
+  // TAHAP 1: SIMPAN DAFTAR HADIR PESERTA (KOLOM E-J DIKOSONGKAN DULU)
+  // =========================================================================
+  const handleConfirmRegister = async (): Promise<boolean> => {
     setLoginError('');
 
-    if (!namaPeserta.trim() || !emailPeserta.trim() || !alamatPeserta.trim()) {
-      setLoginError('Mohon lengkapi seluruh data diri Anda!');
-      return;
+    if (!posisiDilamar || !posisiDilamar.trim()) {
+      setLoginError('Silakan pilih Posisi yang Anda lamar terlebih dahulu!');
+      return false;
     }
 
-    const filtered = allBankSoal.filter((s) => isSoalMatchPosisi(s.kategori, posisiDilamar));
+    setRegistering(true);
+
+    try {
+      const res = await fetch('/api/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'REGISTER',
+          namaPeserta: namaPeserta.trim(),
+          emailPeserta: emailPeserta.trim(),
+          teleponPeserta: teleponPeserta.trim(),
+          posisiDilamar,
+          alamatPeserta: alamatPeserta.trim(),
+        }),
+      });
+      const json = await res.json();
+
+      if (!res.ok || !json.success) {
+        setLoginError(json.error || 'Gagal menyimpan data kehadiran peserta.');
+        return false;
+      }
+
+      const statusPayload: ParticipantLobbyStatus = {
+        rowNumber: json.rowNumber,
+        namaPeserta: json.namaPeserta || namaPeserta.trim(),
+        emailPeserta: json.emailPeserta || emailPeserta.trim(),
+        teleponPeserta: json.teleponPeserta || teleponPeserta.trim(),
+        posisiDilamar: json.posisiDilamar || posisiDilamar,
+        alamatPeserta: json.alamatPeserta || alamatPeserta.trim(),
+        statusUjian: json.statusUjian || '',
+        statusWawancara: json.statusWawancara || '',
+        kompetensiApproved: Boolean(json.kompetensiApproved),
+        kompetensiSelesai: Boolean(json.kompetensiSelesai),
+        sedangUjian: Boolean(json.sedangUjian),
+        wawancaraApproved: Boolean(json.wawancaraApproved),
+      };
+
+      setNamaPeserta(statusPayload.namaPeserta);
+      setEmailPeserta(statusPayload.emailPeserta);
+      setTeleponPeserta(statusPayload.teleponPeserta || '');
+      setPosisiDilamar(statusPayload.posisiDilamar);
+      setAlamatPeserta(statusPayload.alamatPeserta);
+      setMonitoringRowNumber(statusPayload.rowNumber);
+      setLobbyStatus(statusPayload);
+
+      try {
+        localStorage.setItem(PARTICIPANT_LOBBY_STORAGE_KEY, JSON.stringify(statusPayload));
+      } catch {}
+
+      return true;
+    } catch {
+      setLoginError('Gagal menghubungi server. Periksa koneksi internet Anda.');
+      return false;
+    } finally {
+      setRegistering(false);
+    }
+  };
+
+  // =========================================================================
+  // TAHAP 1.B: MASUK CEPAT DENGAN EMAIL BAGI PESERTA YANG SUDAH ABSEN DI HP
+  // =========================================================================
+  const handleQuickLogin = async (emailInput: string): Promise<boolean> => {
+    setLoginError('');
+    setRegistering(true);
+
+    try {
+      const res = await fetch('/api/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'QUICK_LOGIN',
+          emailPeserta: emailInput.trim(),
+        }),
+      });
+      const json = await res.json();
+
+      if (!res.ok || !json.success) {
+        setLoginError(json.error || 'Email belum terdaftar dalam daftar hadir.');
+        return false;
+      }
+
+      const statusPayload: ParticipantLobbyStatus = {
+        rowNumber: json.rowNumber,
+        namaPeserta: json.namaPeserta,
+        emailPeserta: json.emailPeserta,
+        teleponPeserta: json.teleponPeserta || '',
+        posisiDilamar: json.posisiDilamar,
+        alamatPeserta: json.alamatPeserta,
+        statusUjian: json.statusUjian || '',
+        statusWawancara: json.statusWawancara || '',
+        kompetensiApproved: Boolean(json.kompetensiApproved),
+        kompetensiSelesai: Boolean(json.kompetensiSelesai),
+        sedangUjian: Boolean(json.sedangUjian),
+        wawancaraApproved: Boolean(json.wawancaraApproved),
+      };
+
+      setNamaPeserta(statusPayload.namaPeserta);
+      setEmailPeserta(statusPayload.emailPeserta);
+      setTeleponPeserta(statusPayload.teleponPeserta || '');
+      setPosisiDilamar(statusPayload.posisiDilamar);
+      setAlamatPeserta(statusPayload.alamatPeserta);
+      setMonitoringRowNumber(statusPayload.rowNumber);
+      setLobbyStatus(statusPayload);
+
+      try {
+        localStorage.setItem(PARTICIPANT_LOBBY_STORAGE_KEY, JSON.stringify(statusPayload));
+        localStorage.setItem(TERMS_ACCEPTED_STORAGE_KEY, 'true');
+      } catch {}
+
+      setHasAcceptedTerms(true);
+      setIsInLobby(true);
+      return true;
+    } catch {
+      setLoginError('Gagal menghubungi server. Periksa koneksi internet Anda.');
+      return false;
+    } finally {
+      setRegistering(false);
+    }
+  };
+
+  // =========================================================================
+  // TAHAP 2: REFRESH STATUS LOBBY PESERTA DARI MONITORING_PESERTA
+  // =========================================================================
+  const handleRefreshLobbyStatus = useCallback(async () => {
+    if (!lobbyStatus && !emailPeserta && !namaPeserta) return;
+    setRefreshingLobby(true);
+
+    try {
+      const params = new URLSearchParams();
+      if (lobbyStatus?.rowNumber) params.set('rowNumber', String(lobbyStatus.rowNumber));
+      if (lobbyStatus?.emailPeserta || emailPeserta) {
+        params.set('email', lobbyStatus?.emailPeserta || emailPeserta);
+      }
+      if (lobbyStatus?.namaPeserta || namaPeserta) {
+        params.set('nama', lobbyStatus?.namaPeserta || namaPeserta);
+      }
+
+      const res = await fetch(`/api/start?${params.toString()}`);
+      if (res.status === 404) {
+        // Jika baris peserta dihapus dari Google Sheets oleh Admin, keluarkan kembali ke form awal
+        forceEjectMissingParticipant();
+        return;
+      }
+
+      const json = await res.json();
+      if (json.success) {
+        // Jika Admin telah menyetujui permohonan ganti akun, otomatis bersihkan sesi dan arahkan ke login
+        if (json.resetRequestStatus === 'APPROVED') {
+          fetch('/api/start', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'CLEAR_RESET_STATUS',
+              emailPeserta: json.emailPeserta,
+              namaPeserta: json.namaPeserta,
+            }),
+          }).catch(() => {});
+
+          localStorage.removeItem(PARTICIPANT_LOBBY_STORAGE_KEY);
+          localStorage.removeItem(TERMS_ACCEPTED_STORAGE_KEY);
+          setIsInLobby(false);
+          setHasAcceptedTerms(false);
+          setLobbyStatus(null);
+          setLobbyError('');
+          return;
+        }
+
+        const updated: ParticipantLobbyStatus = {
+          rowNumber: json.rowNumber,
+          namaPeserta: json.namaPeserta,
+          emailPeserta: json.emailPeserta,
+          teleponPeserta: json.teleponPeserta || '',
+          posisiDilamar: json.posisiDilamar,
+          alamatPeserta: json.alamatPeserta,
+          statusUjian: json.statusUjian || '',
+          statusWawancara: json.statusWawancara || '',
+          kompetensiApproved: Boolean(json.kompetensiApproved),
+          kompetensiSelesai: Boolean(json.kompetensiSelesai),
+          sedangUjian: Boolean(json.sedangUjian),
+          wawancaraApproved: Boolean(json.wawancaraApproved),
+          resetRequestStatus: json.resetRequestStatus || 'NONE',
+        };
+        setLobbyStatus(updated);
+        setMonitoringRowNumber(updated.rowNumber);
+        setLobbyError('');
+        try {
+          localStorage.setItem(PARTICIPANT_LOBBY_STORAGE_KEY, JSON.stringify(updated));
+        } catch {}
+      }
+    } catch {
+      // Abaikan gangguan jaringan sesaat saat polling
+    } finally {
+      setRefreshingLobby(false);
+    }
+  }, [lobbyStatus, emailPeserta, namaPeserta, forceEjectMissingParticipant]);
+
+  // =========================================================================
+  // TAHAP 3: MULAI UJIAN KOMPETENSI (SAAT KLIK "MULAI UJIAN SEKARANG")
+  //          BARULAH TIMER 60 MENIT BERJALAN & KOLOM E-I TERISI DI SPREADSHEET
+  // =========================================================================
+  const handleStartCompetencyExam = async () => {
+    setLobbyError('');
+
+    const targetPosisi = lobbyStatus?.posisiDilamar || posisiDilamar;
+    const filtered = allBankSoal.filter((s) => isSoalMatchPosisi(s.kategori, targetPosisi));
     const baseList = filtered.length > 0 ? filtered : allBankSoal;
     const randomizedSoal = shuffleArray(baseList);
 
@@ -411,10 +707,13 @@ export default function UjianSKD() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          namaPeserta: namaPeserta.trim(),
-          emailPeserta: emailPeserta.trim(),
-          posisiDilamar,
-          alamatPeserta: alamatPeserta.trim(),
+          action: 'START_EXAM',
+          rowNumber: lobbyStatus?.rowNumber || monitoringRowNumber,
+          namaPeserta: (lobbyStatus?.namaPeserta || namaPeserta).trim(),
+          emailPeserta: (lobbyStatus?.emailPeserta || emailPeserta).trim(),
+          teleponPeserta: (lobbyStatus?.teleponPeserta || teleponPeserta).trim(),
+          posisiDilamar: targetPosisi,
+          alamatPeserta: (lobbyStatus?.alamatPeserta || alamatPeserta).trim(),
           totalSoal: randomizedSoal.length,
           durasiDetik: EXAM_DURATION_SECONDS,
         }),
@@ -422,10 +721,9 @@ export default function UjianSKD() {
       const json = await res.json();
 
       if (!res.ok || !json.success) {
-        setLoginError(
-          json.error || 'Anda sudah pernah mengikuti ujian ini dan tidak dapat login kembali.'
+        setLobbyError(
+          json.error || 'Akses ujian belum dapat dimulai. Pastikan Admin telah memberikan Approve.'
         );
-        setStartingExam(false);
         return;
       }
 
@@ -437,9 +735,10 @@ export default function UjianSKD() {
       setTimeLeft(EXAM_DURATION_SECONDS);
       setSoalList(randomizedSoal);
       setCurrentIndex(0);
+      setIsFinished(false);
       setIsLoggedIn(true);
     } catch {
-      setLoginError('Gagal menghubungi server. Periksa koneksi internet Anda.');
+      setLobbyError('Gagal menghubungi server untuk memulai ujian. Periksa koneksi internet Anda.');
     } finally {
       setStartingExam(false);
     }
@@ -473,26 +772,66 @@ export default function UjianSKD() {
     });
   };
 
-  // TAMPILAN 1: FORM LOGIN PESERTA
-  if (!isLoggedIn) {
+  // TAMPILAN 1: FORM DAFTAR HADIR PESERTA (+ POP-UP KONFIRMASI SIMPAN & POP-UP KETENTUAN)
+  if (!isLoggedIn && (!isInLobby || !lobbyStatus)) {
     return (
       <LoginView
         namaPeserta={namaPeserta}
         setNamaPeserta={setNamaPeserta}
         emailPeserta={emailPeserta}
         setEmailPeserta={setEmailPeserta}
+        teleponPeserta={teleponPeserta}
+        setTeleponPeserta={setTeleponPeserta}
         posisiDilamar={posisiDilamar}
         setPosisiDilamar={setPosisiDilamar}
         alamatPeserta={alamatPeserta}
         setAlamatPeserta={setAlamatPeserta}
         loginError={loginError}
-        startingExam={startingExam}
-        onSubmit={handleLogin}
+        setLoginError={setLoginError}
+        registering={registering}
+        onConfirmRegister={handleConfirmRegister}
+        onQuickLogin={handleQuickLogin}
+        onCompleteTerms={() => {
+          setHasAcceptedTerms(true);
+          try {
+            localStorage.setItem(TERMS_ACCEPTED_STORAGE_KEY, 'true');
+          } catch {}
+          setIsInLobby(true);
+        }}
       />
     );
   }
 
-  // TAMPILAN 3: UJIAN SELESAI
+  // TAMPILAN 2: PORTAL LOBBY STATUS SELEKSI (ARAHAN KOMPETENSI VS WAWANCARA)
+  if (!isLoggedIn && isInLobby && lobbyStatus) {
+    return (
+      <ParticipantLobbyView
+        lobbyStatus={lobbyStatus}
+        startingExam={startingExam}
+        refreshingStatus={refreshingLobby}
+        errorMessage={lobbyError}
+        hasAcceptedTerms={hasAcceptedTerms}
+        onAcceptTerms={() => {
+          setHasAcceptedTerms(true);
+          try {
+            localStorage.setItem(TERMS_ACCEPTED_STORAGE_KEY, 'true');
+          } catch {}
+        }}
+        onRefreshStatus={handleRefreshLobbyStatus}
+        onStartCompetencyExam={handleStartCompetencyExam}
+        onLogoutIdentity={() => {
+          localStorage.removeItem(PARTICIPANT_LOBBY_STORAGE_KEY);
+          localStorage.removeItem(TERMS_ACCEPTED_STORAGE_KEY);
+          setIsInLobby(false);
+          setHasAcceptedTerms(false);
+          setLobbyStatus(null);
+          setLobbyError('');
+        }}
+      />
+    );
+  }
+
+  // TAMPILAN 4: UJIAN KOMPETENSI SELESAI
   if (isFinished) {
     return (
       <FinishedView
@@ -501,11 +840,22 @@ export default function UjianSKD() {
         posisiDilamar={posisiDilamar}
         terjawabCount={terjawabCount}
         totalSoal={soalList.length}
+        wawancaraApproved={Boolean(lobbyStatus?.wawancaraApproved)}
+        onBackToLobby={() => {
+          setIsLoggedIn(false);
+          setIsFinished(false);
+          setHasAcceptedTerms(true);
+          try {
+            localStorage.setItem(TERMS_ACCEPTED_STORAGE_KEY, 'true');
+          } catch {}
+          setIsInLobby(true);
+          handleRefreshLobbyStatus();
+        }}
       />
     );
   }
 
-  // TAMPILAN 2: HALAMAN UJIAN UTAMA
+  // TAMPILAN 3: HALAMAN PENGERJAAN SOAL KOMPETENSI UTAMA
   const activeSoal = soalList[currentIndex];
   const totalTerjawab = terjawabCount;
   const activePraktikData = activeSoal ? jawabanPraktik[activeSoal.id] || {} : {};

@@ -19,6 +19,7 @@ export interface DataPraktik {
 export interface IdentitasPeserta {
   namaPeserta: string;
   emailPeserta: string;
+  teleponPeserta?: string;
   posisiDilamar: string;
   alamatPeserta: string;
 }
@@ -34,5 +35,17 @@ export interface SavedExamSession extends IdentitasPeserta {
   monitoringRowNumber: number | null;
   endTimeMs: number;
 }
+
+export interface ParticipantLobbyStatus extends IdentitasPeserta {
+  rowNumber: number;
+  statusUjian: string;
+  statusWawancara: string;
+  kompetensiApproved: boolean;
+  kompetensiSelesai: boolean;
+  sedangUjian: boolean;
+  wawancaraApproved: boolean;
+  resetRequestStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'NONE';
+}
+
 
 

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getGoogleSheetsInstance } from '@/lib/googleSheets';
 import { isSoalMatchPosisi, parseSoalRow, ParsedSoalRow } from '@/utils/examHelper';
 import { getTargetResultSheetName, SHEET_NAMES } from '@/constants/exam';
+import { invalidateMonitoringCache } from '@/lib/sheetsCache';
 import {
   getServerParticipantSession,
   hasParticipantAlreadySubmitted,
@@ -242,7 +243,7 @@ export async function POST(request: Request) {
       await sheets.spreadsheets.values
         .update({
           spreadsheetId,
-          range: `${SHEET_NAMES.MONITORING}!G${targetRow}:I${targetRow}`,
+          range: `${SHEET_NAMES.MONITORING}!H${targetRow}:J${targetRow}`,
           valueInputOption: 'RAW',
           requestBody: {
             values: [
@@ -253,6 +254,9 @@ export async function POST(request: Request) {
               ]),
             ],
           },
+        })
+        .then(() => {
+          invalidateMonitoringCache();
         })
         .catch(() => {});
     }

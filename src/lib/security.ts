@@ -54,9 +54,24 @@ export interface ServerParticipantSession {
   sessionToken: string;
 }
 
+export interface ResetAccountRequest {
+  id: string;
+  rowNumber: number;
+  namaPeserta: string;
+  emailPeserta: string;
+  posisiDilamar: string;
+  alasan?: string;
+  waktu: string;
+}
+
 const globalForSecurity = globalThis as unknown as {
   bpsParticipantSessions?: Map<string, ServerParticipantSession>;
   bpsSubmittedKeys?: Set<string>;
+  bpsApprovedKompetensiRows?: Set<number>;
+  bpsApprovedKompetensiKeys?: Set<string>;
+  bpsResetAccountRequests?: Map<string, ResetAccountRequest>;
+  bpsApprovedResetKeys?: Set<string>;
+  bpsRejectedResetKeys?: Set<string>;
 };
 
 if (!globalForSecurity.bpsParticipantSessions) {
@@ -64,6 +79,21 @@ if (!globalForSecurity.bpsParticipantSessions) {
 }
 if (!globalForSecurity.bpsSubmittedKeys) {
   globalForSecurity.bpsSubmittedKeys = new Set<string>();
+}
+if (!globalForSecurity.bpsApprovedKompetensiRows) {
+  globalForSecurity.bpsApprovedKompetensiRows = new Set<number>();
+}
+if (!globalForSecurity.bpsApprovedKompetensiKeys) {
+  globalForSecurity.bpsApprovedKompetensiKeys = new Set<string>();
+}
+if (!globalForSecurity.bpsResetAccountRequests) {
+  globalForSecurity.bpsResetAccountRequests = new Map<string, ResetAccountRequest>();
+}
+if (!globalForSecurity.bpsApprovedResetKeys) {
+  globalForSecurity.bpsApprovedResetKeys = new Set<string>();
+}
+if (!globalForSecurity.bpsRejectedResetKeys) {
+  globalForSecurity.bpsRejectedResetKeys = new Set<string>();
 }
 
 function getSecretKey(): string {
@@ -159,4 +189,149 @@ export function markParticipantSubmitted(email?: string, nama?: string): void {
     session.hasSubmitted = true;
   }
 }
+
+/**
+ * 4. MANAJEMEN APPROVE AKSES TES KOMPETENSI (TANPA MENGISI KOLOM STATUS UJIAN SEBELUM PESERTA KLIK MULAI)
+ */
+export function setKompetensiApproved(
+  rowNumber?: number | null,
+  email?: string,
+  nama?: string,
+  approved = true
+): void {
+  const rowSet = globalForSecurity.bpsApprovedKompetensiRows!;
+  const keySet = globalForSecurity.bpsApprovedKompetensiKeys!;
+  const emailKey = normalizeParticipantKey(email, '');
+  const nameKey = normalizeParticipantKey('', nama);
+
+  if (approved) {
+    if (rowNumber) rowSet.add(Number(rowNumber));
+    if (emailKey) keySet.add(emailKey);
+    if (nameKey) keySet.add(nameKey);
+  } else {
+    if (rowNumber) rowSet.delete(Number(rowNumber));
+    if (emailKey) keySet.delete(emailKey);
+    if (nameKey) keySet.delete(nameKey);
+  }
+}
+
+export function isKompetensiApproved(
+  rowNumber?: number | null,
+  email?: string,
+  nama?: string,
+  sheetStatusUjian?: string
+): boolean {
+  const upperStatus = (sheetStatusUjian || '').toUpperCase().trim();
+  if (
+    upperStatus.includes('SIAP') ||
+    upperStatus.includes('APPROVED') ||
+    upperStatus.includes('SEDANG') ||
+    upperStatus.includes('SELESAI')
+  ) {
+    return true;
+  }
+
+  const rowSet = globalForSecurity.bpsApprovedKompetensiRows!;
+  const keySet = globalForSecurity.bpsApprovedKompetensiKeys!;
+  const emailKey = normalizeParticipantKey(email, '');
+  const nameKey = normalizeParticipantKey('', nama);
+
+  if (rowNumber && rowSet.has(Number(rowNumber))) return true;
+  if (emailKey && keySet.has(emailKey)) return true;
+  if (nameKey && keySet.has(nameKey)) return true;
+
+  return false;
+}
+
+/**
+ * 5. MANAJEMEN PENGAJUAN GANTI AKUN / KELUAR DARI LOBBY (APPROVAL ADMIN)
+ */
+export function requestAccountReset(params: {
+  rowNumber: number;
+  namaPeserta: string;
+  emailPeserta: string;
+  posisiDilamar: string;
+  alasan?: string;
+}): ResetAccountRequest {
+  const key = normalizeParticipantKey(params.emailPeserta, params.namaPeserta);
+  const waktu = new Date().toLocaleTimeString('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+
+  const request: ResetAccountRequest = {
+    id: `req_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    rowNumber: params.rowNumber,
+    namaPeserta: params.namaPeserta.trim(),
+    emailPeserta: params.emailPeserta.trim(),
+    posisiDilamar: params.posisiDilamar,
+    alasan: params.alasan || 'Ingin ganti akun / data kehadiran',
+    waktu,
+  };
+
+  globalForSecurity.bpsResetAccountRequests!.set(key, request);
+  globalForSecurity.bpsApprovedResetKeys!.delete(key);
+  globalForSecurity.bpsRejectedResetKeys!.delete(key);
+  return request;
+}
+
+export function getPendingAccountResetRequests(): ResetAccountRequest[] {
+  return Array.from(globalForSecurity.bpsResetAccountRequests!.values());
+}
+
+export function checkAccountResetStatus(
+  email?: string,
+  nama?: string
+): 'PENDING' | 'APPROVED' | 'REJECTED' | 'NONE' {
+  const key = normalizeParticipantKey(email, nama);
+  if (globalForSecurity.bpsApprovedResetKeys!.has(key)) {
+    return 'APPROVED';
+  }
+  if (globalForSecurity.bpsRejectedResetKeys!.has(key)) {
+    return 'REJECTED';
+  }
+  if (globalForSecurity.bpsResetAccountRequests!.has(key)) {
+    return 'PENDING';
+  }
+  return 'NONE';
+}
+
+export function resolveAccountResetRequest(
+  keyOrId: string,
+  action: 'APPROVE' | 'REJECT'
+): boolean {
+  const store = globalForSecurity.bpsResetAccountRequests!;
+  let targetKey: string | null = null;
+
+  for (const [key, req] of store.entries()) {
+    if (key === keyOrId || req.id === keyOrId) {
+      targetKey = key;
+      break;
+    }
+  }
+
+  if (!targetKey) return false;
+
+  store.delete(targetKey);
+
+  if (action === 'APPROVE') {
+    globalForSecurity.bpsApprovedResetKeys!.add(targetKey);
+    globalForSecurity.bpsRejectedResetKeys!.delete(targetKey);
+  } else {
+    globalForSecurity.bpsRejectedResetKeys!.add(targetKey);
+    globalForSecurity.bpsApprovedResetKeys!.delete(targetKey);
+  }
+
+  return true;
+}
+
+export function clearAccountResetResolution(email?: string, nama?: string): void {
+  const key = normalizeParticipantKey(email, nama);
+  globalForSecurity.bpsApprovedResetKeys!.delete(key);
+  globalForSecurity.bpsRejectedResetKeys!.delete(key);
+  globalForSecurity.bpsResetAccountRequests!.delete(key);
+}
+
+
 

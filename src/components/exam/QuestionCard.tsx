@@ -104,18 +104,16 @@ export default function QuestionCard({
                     key={optIdx}
                     type="button"
                     onClick={() => onSelectAnswer(activeSoal.id, huruf)}
-                    className={`w-full text-left px-3.5 py-3 border-3 border-slate-950 text-sm md:text-base flex items-center gap-3.5 transition-all cursor-pointer overflow-hidden ${
-                      isSelected
-                        ? 'bg-[#00AEEF] text-slate-950 font-black translate-x-[2px] translate-y-[2px] shadow-[2px_2px_0px_0px_#0f172a]'
-                        : 'bg-white hover:bg-[#E6F7FF] text-slate-900 font-bold shadow-[4px_4px_0px_0px_#0f172a] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[3px_3px_0px_0px_#0f172a]'
-                    }`}
+                    className={`w-full text-left px-3.5 py-3 border-3 border-slate-950 text-sm md:text-base flex items-center gap-3.5 transition-all cursor-pointer overflow-hidden ${isSelected
+                      ? 'bg-[#00AEEF] text-slate-950 font-black translate-x-[2px] translate-y-[2px] shadow-[2px_2px_0px_0px_#0f172a]'
+                      : 'bg-white hover:bg-[#E6F7FF] text-slate-900 font-bold shadow-[4px_4px_0px_0px_#0f172a] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[3px_3px_0px_0px_#0f172a]'
+                      }`}
                   >
                     <span
-                      className={`w-8 h-8 flex items-center justify-center text-sm font-black border-2 border-slate-950 shrink-0 ${
-                        isSelected
-                          ? 'bg-[#F7941D] text-slate-950 shadow-[2px_2px_0px_0px_#0f172a]'
-                          : 'bg-[#FFFDF7] text-slate-950'
-                      }`}
+                      className={`w-8 h-8 flex items-center justify-center text-sm font-black border-2 border-slate-950 shrink-0 ${isSelected
+                        ? 'bg-[#F7941D] text-slate-950 shadow-[2px_2px_0px_0px_#0f172a]'
+                        : 'bg-[#FFFDF7] text-slate-950'
+                        }`}
                     >
                       {huruf}
                     </span>
@@ -124,7 +122,7 @@ export default function QuestionCard({
                     </span>
                     {isSelected && (
                       <span className="bg-slate-950 text-white text-[10px] font-black uppercase px-2 py-0.5 shrink-0">
-                        ✓ Dipilih
+                        Dipilih
                       </span>
                     )}
                   </button>
@@ -158,16 +156,15 @@ export default function QuestionCard({
         {activeSoal.tipe === 'PRAKTIK' && (
           <div className="mb-8 space-y-5">
             <div
-              className={`${
-                isPraktikDesain ? 'bg-[#FFF5E6]' : 'bg-[#E6F7FF]'
-              } border-3 border-slate-950 p-4 md:p-5 shadow-[4px_4px_0px_0px_#0f172a] space-y-2.5`}
+              className={`${isPraktikDesain ? 'bg-[#FFF5E6]' : 'bg-[#E6F7FF]'
+                } border-3 border-slate-950 p-4 md:p-5 shadow-[4px_4px_0px_0px_#0f172a] space-y-2.5`}
             >
               <label className="block text-xs md:text-sm font-black uppercase tracking-wider text-slate-950">
                 {isPraktikDesain
                   ? '🎨 Tautan / Link Hasil Desain:'
                   : isPraktikSpreadsheet
-                  ? '📊 Tautan / Link Hasil Kerja (Spreadsheet):'
-                  : '🔗 Tautan / Link Hasil Praktik Kompetensi:'}
+                    ? '📊 Tautan / Link Hasil Kerja (Spreadsheet):'
+                    : '🔗 Tautan / Link Hasil Praktik Kompetensi:'}
               </label>
               <input
                 type="url"
@@ -204,7 +201,7 @@ export default function QuestionCard({
             disabled={currentIndex === totalSoal - 1}
             className="px-5 py-2.5 bg-[#00AEEF] hover:bg-[#24beff] border-3 border-slate-950 text-xs md:text-sm font-black uppercase text-slate-950 shadow-[4px_4px_0px_0px_#0f172a] disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
           >
-            Selanjutnya →
+            Selanjutnya
           </button>
         </div>
       </div>
