@@ -74,7 +74,7 @@ export default function UjianSKD() {
   const violationsRef = useRef(violations);
   const timeLeftRef = useRef(timeLeft);
   const monitoringRowRef = useRef<number | null>(monitoringRowNumber);
-  const identitasRef = useRef({ namaPeserta, emailPeserta, posisiDilamar, alamatPeserta });
+  const identitasRef = useRef({ namaPeserta, emailPeserta, teleponPeserta, posisiDilamar, alamatPeserta });
   const activeSoalTipeRef = useRef<TipeSoal>('PG');
   const lastSyncedTerjawabCountRef = useRef<number>(0);
   const showWarningRef = useRef(showWarning);
@@ -139,6 +139,7 @@ export default function UjianSKD() {
 
             setNamaPeserta(parsed.namaPeserta || '');
             setEmailPeserta(parsed.emailPeserta || '');
+            setTeleponPeserta(parsed.teleponPeserta || '');
             setPosisiDilamar(parsed.posisiDilamar || POSISI_OPTIONS[0]);
             setAlamatPeserta(parsed.alamatPeserta || '');
             setSoalList(parsed.soalList || []);
@@ -219,6 +220,7 @@ export default function UjianSKD() {
         isFinished,
         namaPeserta,
         emailPeserta,
+        teleponPeserta,
         posisiDilamar,
         alamatPeserta,
         soalList,
@@ -238,6 +240,7 @@ export default function UjianSKD() {
     isFinished,
     namaPeserta,
     emailPeserta,
+    teleponPeserta,
     posisiDilamar,
     alamatPeserta,
     soalList,
@@ -708,6 +711,7 @@ export default function UjianSKD() {
           rowNumber: lobbyStatus?.rowNumber || monitoringRowNumber,
           namaPeserta: (lobbyStatus?.namaPeserta || namaPeserta).trim(),
           emailPeserta: (lobbyStatus?.emailPeserta || emailPeserta).trim(),
+          teleponPeserta: (lobbyStatus?.teleponPeserta || teleponPeserta).trim(),
           posisiDilamar: targetPosisi,
           alamatPeserta: (lobbyStatus?.alamatPeserta || alamatPeserta).trim(),
           totalSoal: randomizedSoal.length,
