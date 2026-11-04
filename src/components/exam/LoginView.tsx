@@ -385,11 +385,10 @@ export default function LoginView({
                 setActiveTab('REGISTER');
                 setLoginError('');
               }}
-              className={`p-3.5 border-3 border-slate-950 transition cursor-pointer text-left flex items-center gap-3 ${
-                activeTab === 'REGISTER'
-                  ? 'bg-[#8CC63F] text-slate-950 shadow-[4px_4px_0px_0px_#0f172a]'
-                  : 'bg-[#FFFDF7] hover:bg-slate-100 text-slate-950'
-              }`}
+              className={`p-3.5 border-3 border-slate-950 transition cursor-pointer text-left flex items-center gap-3 ${activeTab === 'REGISTER'
+                ? 'bg-[#8CC63F] text-slate-950 shadow-[4px_4px_0px_0px_#0f172a]'
+                : 'bg-[#FFFDF7] hover:bg-slate-100 text-slate-950'
+                }`}
             >
               <span className="w-8 h-8 bg-white border-2 border-slate-950 flex items-center justify-center shadow-[2px_2px_0px_0px_#0f172a] shrink-0">
                 <svg
@@ -407,7 +406,7 @@ export default function LoginView({
               </span>
               <div className="min-w-0">
                 <p className="font-black text-xs uppercase leading-tight truncate">
-                  Form Hadir Baru
+                  Daftar Hadir Seleksi
                 </p>
                 <p className="text-[10px] font-bold text-slate-700 mt-0.5 truncate">
                   Belum absen sama sekali
@@ -421,11 +420,10 @@ export default function LoginView({
                 setActiveTab('QUICK_LOGIN');
                 setLoginError('');
               }}
-              className={`p-3.5 border-3 border-slate-950 transition cursor-pointer text-left flex items-center gap-3 ${
-                activeTab === 'QUICK_LOGIN'
-                  ? 'bg-[#00AEEF] text-slate-950 shadow-[4px_4px_0px_0px_#0f172a]'
-                  : 'bg-[#FFFDF7] hover:bg-slate-100 text-slate-950'
-              }`}
+              className={`p-3.5 border-3 border-slate-950 transition cursor-pointer text-left flex items-center gap-3 ${activeTab === 'QUICK_LOGIN'
+                ? 'bg-[#00AEEF] text-slate-950 shadow-[4px_4px_0px_0px_#0f172a]'
+                : 'bg-[#FFFDF7] hover:bg-slate-100 text-slate-950'
+                }`}
             >
               <span className="w-8 h-8 bg-white border-2 border-slate-950 flex items-center justify-center shadow-[2px_2px_0px_0px_#0f172a] shrink-0">
                 <svg
@@ -443,10 +441,10 @@ export default function LoginView({
               </span>
               <div className="min-w-0">
                 <p className="font-black text-xs uppercase leading-tight truncate">
-                  Sudah Absen di HP?
+                  Masuk Cepat
                 </p>
                 <p className="text-[10px] font-bold text-slate-700 mt-0.5 truncate">
-                  Masuk cepat via email
+                  Masuk Email ketika telah absen
                 </p>
               </div>
             </button>
@@ -534,9 +532,8 @@ export default function LoginView({
                   required
                   value={posisiDilamar}
                   onChange={(e) => setPosisiDilamar(e.target.value)}
-                  className={`w-full px-4 py-3 bg-[#FFFDF7] border-3 border-slate-950 font-bold focus:outline-none focus:bg-[#F2FAE9] shadow-[4px_4px_0px_0px_#0f172a] transition cursor-pointer ${
-                    posisiDilamar ? 'text-slate-950' : 'text-slate-400'
-                  }`}
+                  className={`w-full px-4 py-3 bg-[#FFFDF7] border-3 border-slate-950 font-bold focus:outline-none focus:bg-[#F2FAE9] shadow-[4px_4px_0px_0px_#0f172a] transition cursor-pointer ${posisiDilamar ? 'text-slate-950' : 'text-slate-400'
+                    }`}
                 >
                   <option value="" disabled className="text-slate-400">
                     -- Pilih Posisi Formasi --
@@ -631,17 +628,17 @@ export default function LoginView({
                     </svg>
                   </span>
                   <h3 className="font-black text-xs uppercase text-slate-950">
-                    Sudah Mengisi Daftar Hadir di HP?
+                    Sudah Mengisi Daftar Hadir Sebelumnya?
                   </h3>
                 </div>
                 <p className="text-xs font-bold text-slate-800 leading-relaxed">
-                  Gunakan <strong>email yang sama Anda gunakan waktu login di HP</strong>. Sistem akan langsung memulihkan data nama, formasi, serta izin ujian dari pengawas ruangan secara otomatis ke laptop ini.
+                  Gunakan <strong>email yang sama Anda gunakan Saat Mengisi Absensi</strong>. Untuk Melanjutkan Seleksi yang telah anda daftar.
                 </p>
               </div>
 
               <div>
                 <label className="block text-xs font-black uppercase tracking-wider text-slate-950 mb-1.5">
-                  Email Terdaftar (Yang Digunakan Saat Absen di HP)
+                  Email Yang Anda Guunakan Mengisi Daftar Hadir.
                 </label>
                 <input
                   type="email"

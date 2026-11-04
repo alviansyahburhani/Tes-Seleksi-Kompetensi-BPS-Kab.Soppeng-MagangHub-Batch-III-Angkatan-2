@@ -42,10 +42,10 @@ async function createMonitoringSheetIfMissing(sheets: any, spreadsheetId: string
     });
   }
 
-  // Pastikan header kolom A1:K1 mencakup No. Telepon di Kolom C dan Status Wawancara di Kolom K
+  // Pastikan header kolom A1:L1 mencakup No. Telepon di Kolom C, Status Wawancara di Kolom K, dan Status Kelulusan di Kolom L
   await sheets.spreadsheets.values.update({
     spreadsheetId,
-    range: `${SHEET_NAMES.MONITORING}!A1:K1`,
+    range: `${SHEET_NAMES.MONITORING}!A1:L1`,
     valueInputOption: 'RAW',
     requestBody: {
       values: [
@@ -61,12 +61,71 @@ async function createMonitoringSheetIfMissing(sheets: any, spreadsheetId: string
           'Progress Jawaban',
           'Status Ujian',
           'Status Wawancara',
+          'Status Kelulusan',
         ],
       ],
     },
   });
 
   isMonitoringSheetVerified = true;
+}
+
+/**
+ * Helper: Mengekstrak Status Kelulusan secara dinamis dari Kolom K / L / M
+ * (Mendukung baris lama sebelum penambahan No. Telepon maupun baris baru, serta segala variasi teks kelulusan)
+ */
+function extractStatusKelulusan(row: any[]): string {
+  // 1. Cek Kolom L (index 11) dan Kolom M (index 12) terlebih dahulu (kolom khusus Status Kelulusan)
+  const colL = (row?.[11] || '').toString().trim();
+  if (colL) return colL;
+
+  const colM = (row?.[12] || '').toString().trim();
+  if (colM) return colM;
+
+  // 2. Cek Kolom K (index 10):
+  //    Jika Kolom K berisi nilai SELAIN status wawancara ("SUDAH WAWANCARA..."),
+  //    berarti Admin menuliskan status kelulusan di Kolom K!
+  const colK = (row?.[10] || '').toString().trim();
+  if (colK) {
+    const upperK = colK.toUpperCase();
+    const isWawancaraText = upperK.includes('WAWANCARA');
+    if (!isWawancaraText) {
+      return colK;
+    }
+  }
+
+  return '';
+}
+
+/**
+ * Helper: Mengekstrak Status Ujian & Status Wawancara yang kompatibel dengan baris lama (10 kolom) maupun baris baru (11+ kolom)
+ */
+function extractStatusUjianDanWawancara(row: any[]): {
+  statusUjian: string;
+  statusWawancara: string;
+} {
+  const colI = (row?.[8] || '').toString().trim();
+  const colJ = (row?.[9] || '').toString().trim();
+  const colK = (row?.[10] || '').toString().trim();
+
+  // Deteksi apakah baris ini menggunakan format lama (Status Ujian di Kolom I / index 8, Status Wawancara di Kolom J / index 9)
+  const upperI = colI.toUpperCase();
+  const upperJ = colJ.toUpperCase();
+  const isOldRowFormat =
+    (upperI.includes('SELESAI') || upperI.includes('SEDANG')) &&
+    (upperJ.includes('WAWANCARA') || !colK || !colK.toUpperCase().includes('WAWANCARA'));
+
+  if (isOldRowFormat) {
+    return {
+      statusUjian: colI,
+      statusWawancara: colJ,
+    };
+  }
+
+  return {
+    statusUjian: colJ,
+    statusWawancara: colK,
+  };
 }
 
 /**
@@ -120,8 +179,8 @@ export async function GET(request: Request) {
     const rTelepon = (targetRow[2] || '').toString().trim();
     const rPosisi = (targetRow[3] || '').toString().trim();
     const rAlamat = (targetRow[4] || '').toString().trim();
-    const statusUjian = (targetRow[9] || '').toString().trim();
-    const statusWawancara = (targetRow[10] || '').toString().trim();
+    const { statusUjian, statusWawancara } = extractStatusUjianDanWawancara(targetRow);
+    const statusKelulusan = extractStatusKelulusan(targetRow);
 
     const upperUjian = statusUjian.toUpperCase();
     const upperWawancara = statusWawancara.toUpperCase();
@@ -149,6 +208,7 @@ export async function GET(request: Request) {
       alamatPeserta: rAlamat,
       statusUjian,
       statusWawancara,
+      statusKelulusan,
       kompetensiApproved,
       kompetensiSelesai,
       sedangUjian,
@@ -262,8 +322,8 @@ export async function POST(request: Request) {
       const rTelepon = (existingRow[2] || '').toString().trim();
       const rPosisi = (existingRow[3] || '').toString().trim();
       const rAlamat = (existingRow[4] || '').toString().trim();
-      const statusUjian = (existingRow[9] || '').toString().trim();
-      const statusWawancara = (existingRow[10] || '').toString().trim();
+      const { statusUjian, statusWawancara } = extractStatusUjianDanWawancara(existingRow);
+      const statusKelulusan = extractStatusKelulusan(existingRow);
 
       const upperUjian = statusUjian.toUpperCase();
       const upperWawancara = statusWawancara.toUpperCase();
@@ -292,6 +352,7 @@ export async function POST(request: Request) {
         alamatPeserta: rAlamat,
         statusUjian,
         statusWawancara,
+        statusKelulusan,
         kompetensiApproved,
         kompetensiSelesai,
         sedangUjian,
@@ -312,8 +373,8 @@ export async function POST(request: Request) {
         const rTelepon = (existingRow[2] || teleponPeserta || '').toString().trim();
         const rPosisi = (existingRow[3] || posisiDilamar).toString().trim();
         const rAlamat = (existingRow[4] || alamatPeserta).toString().trim();
-        const statusUjian = (existingRow[9] || '').toString().trim();
-        const statusWawancara = (existingRow[10] || '').toString().trim();
+        const { statusUjian, statusWawancara } = extractStatusUjianDanWawancara(existingRow);
+        const statusKelulusan = extractStatusKelulusan(existingRow);
 
         const upperUjian = statusUjian.toUpperCase();
         const upperWawancara = statusWawancara.toUpperCase();
@@ -342,6 +403,7 @@ export async function POST(request: Request) {
           alamatPeserta: rAlamat,
           statusUjian,
           statusWawancara,
+          statusKelulusan,
           kompetensiApproved,
           kompetensiSelesai,
           sedangUjian,
@@ -358,10 +420,10 @@ export async function POST(request: Request) {
         );
       }
 
-      // Simpan Nama, Email, No. Telepon, Posisi, Alamat di Kolom A-E, dan KOSONGKAN Kolom F-K terlebih dahulu!
+      // Simpan Nama, Email, No. Telepon, Posisi, Alamat di Kolom A-E, dan KOSONGKAN Kolom F-L terlebih dahulu!
       const appendRes = await sheets.spreadsheets.values.append({
         spreadsheetId,
-        range: `${SHEET_NAMES.MONITORING}!A:K`,
+        range: `${SHEET_NAMES.MONITORING}!A:L`,
         valueInputOption: 'RAW',
         insertDataOption: 'INSERT_ROWS',
         requestBody: {
@@ -378,6 +440,7 @@ export async function POST(request: Request) {
               '', // Kolom I: Progress Jawaban (Kosong sampai klik Mulai Ujian)
               '', // Kolom J: Status Ujian (Kosong sampai klik Mulai Ujian)
               '', // Kolom K: Status Wawancara (Kosong sampai di-approve Admin)
+              '', // Kolom L: Status Kelulusan (Kosong sampai pengumuman diisi)
             ]),
           ],
         },
@@ -401,6 +464,7 @@ export async function POST(request: Request) {
         alamatPeserta: alamatPeserta.trim(),
         statusUjian: '',
         statusWawancara: '',
+        statusKelulusan: '',
         kompetensiApproved: false,
         kompetensiSelesai: false,
         sedangUjian: false,

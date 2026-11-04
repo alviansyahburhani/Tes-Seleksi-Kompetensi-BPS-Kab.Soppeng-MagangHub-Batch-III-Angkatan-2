@@ -40,6 +40,7 @@ export interface ParticipantLobbyStatus extends IdentitasPeserta {
   rowNumber: number;
   statusUjian: string;
   statusWawancara: string;
+  statusKelulusan?: string;
   kompetensiApproved: boolean;
   kompetensiSelesai: boolean;
   sedangUjian: boolean;

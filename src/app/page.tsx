@@ -169,7 +169,16 @@ export default function UjianSKD() {
 
         if (savedLobby) {
           const parsedLobby: ParticipantLobbyStatus = JSON.parse(savedLobby);
-          if (parsedLobby && parsedLobby.namaPeserta && parsedLobby.emailPeserta) {
+          const isAlreadyCompletedAll =
+            Boolean(parsedLobby?.kompetensiSelesai && parsedLobby?.wawancaraApproved) ||
+            Boolean(parsedLobby?.statusKelulusan && parsedLobby.statusKelulusan.trim().length > 0);
+
+          // Jika kedua tahap sudah selesai, jangan simpan di localStorage agar peserta login kembali dengan email untuk mengecek
+          if (isAlreadyCompletedAll) {
+            localStorage.removeItem(PARTICIPANT_LOBBY_STORAGE_KEY);
+            localStorage.removeItem(TERMS_ACCEPTED_STORAGE_KEY);
+            setHasAcceptedTerms(false);
+          } else if (parsedLobby && parsedLobby.namaPeserta && parsedLobby.emailPeserta) {
             setNamaPeserta(parsedLobby.namaPeserta);
             setEmailPeserta(parsedLobby.emailPeserta);
             setTeleponPeserta(parsedLobby.teleponPeserta || '');
@@ -178,6 +187,48 @@ export default function UjianSKD() {
             setMonitoringRowNumber(parsedLobby.rowNumber || null);
             setLobbyStatus(parsedLobby);
             setIsInLobby(true);
+
+            // Sinkronisasi 1x saat peserta masuk kembali ke web
+            const params = new URLSearchParams();
+            if (parsedLobby.rowNumber) params.set('rowNumber', String(parsedLobby.rowNumber));
+            if (parsedLobby.emailPeserta) params.set('email', parsedLobby.emailPeserta);
+            if (parsedLobby.namaPeserta) params.set('nama', parsedLobby.namaPeserta);
+            fetch(`/api/start?${params.toString()}`, { cache: 'no-store' })
+              .then((res) => (res.ok ? res.json() : null))
+              .then((json) => {
+                if (json && json.success) {
+                  const freshStatus: ParticipantLobbyStatus = {
+                    rowNumber: json.rowNumber,
+                    namaPeserta: json.namaPeserta,
+                    emailPeserta: json.emailPeserta,
+                    teleponPeserta: json.teleponPeserta || '',
+                    posisiDilamar: json.posisiDilamar,
+                    alamatPeserta: json.alamatPeserta,
+                    statusUjian: json.statusUjian || '',
+                    statusWawancara: json.statusWawancara || '',
+                    statusKelulusan: json.statusKelulusan || '',
+                    kompetensiApproved: Boolean(json.kompetensiApproved),
+                    kompetensiSelesai: Boolean(json.kompetensiSelesai),
+                    sedangUjian: Boolean(json.sedangUjian),
+                    wawancaraApproved: Boolean(json.wawancaraApproved),
+                    resetRequestStatus: json.resetRequestStatus || 'NONE',
+                  };
+                  setLobbyStatus(freshStatus);
+                  setMonitoringRowNumber(freshStatus.rowNumber);
+                  try {
+                    const freshDone =
+                      (freshStatus.kompetensiSelesai && freshStatus.wawancaraApproved) ||
+                      Boolean(freshStatus.statusKelulusan && freshStatus.statusKelulusan.trim());
+                    if (freshDone) {
+                      localStorage.removeItem(PARTICIPANT_LOBBY_STORAGE_KEY);
+                      localStorage.removeItem(TERMS_ACCEPTED_STORAGE_KEY);
+                    } else {
+                      localStorage.setItem(PARTICIPANT_LOBBY_STORAGE_KEY, JSON.stringify(freshStatus));
+                    }
+                  } catch {}
+                }
+              })
+              .catch(() => {});
           }
         }
       }
@@ -335,7 +386,12 @@ export default function UjianSKD() {
             statusUjian: `SELESAI (${terjawabCount}/${soalListRef.current.length})`,
           };
           try {
-            localStorage.setItem(PARTICIPANT_LOBBY_STORAGE_KEY, JSON.stringify(updated));
+            if (updated.kompetensiSelesai && updated.wawancaraApproved) {
+              localStorage.removeItem(PARTICIPANT_LOBBY_STORAGE_KEY);
+              localStorage.removeItem(TERMS_ACCEPTED_STORAGE_KEY);
+            } else {
+              localStorage.setItem(PARTICIPANT_LOBBY_STORAGE_KEY, JSON.stringify(updated));
+            }
           } catch {}
           return updated;
         });
@@ -524,6 +580,7 @@ export default function UjianSKD() {
         alamatPeserta: json.alamatPeserta || alamatPeserta.trim(),
         statusUjian: json.statusUjian || '',
         statusWawancara: json.statusWawancara || '',
+        statusKelulusan: json.statusKelulusan || '',
         kompetensiApproved: Boolean(json.kompetensiApproved),
         kompetensiSelesai: Boolean(json.kompetensiSelesai),
         sedangUjian: Boolean(json.sedangUjian),
@@ -539,7 +596,15 @@ export default function UjianSKD() {
       setLobbyStatus(statusPayload);
 
       try {
-        localStorage.setItem(PARTICIPANT_LOBBY_STORAGE_KEY, JSON.stringify(statusPayload));
+        const isDone =
+          (statusPayload.kompetensiSelesai && statusPayload.wawancaraApproved) ||
+          Boolean(statusPayload.statusKelulusan && statusPayload.statusKelulusan.trim());
+        if (isDone) {
+          localStorage.removeItem(PARTICIPANT_LOBBY_STORAGE_KEY);
+          localStorage.removeItem(TERMS_ACCEPTED_STORAGE_KEY);
+        } else {
+          localStorage.setItem(PARTICIPANT_LOBBY_STORAGE_KEY, JSON.stringify(statusPayload));
+        }
       } catch {}
 
       return true;
@@ -583,6 +648,7 @@ export default function UjianSKD() {
         alamatPeserta: json.alamatPeserta,
         statusUjian: json.statusUjian || '',
         statusWawancara: json.statusWawancara || '',
+        statusKelulusan: json.statusKelulusan || '',
         kompetensiApproved: Boolean(json.kompetensiApproved),
         kompetensiSelesai: Boolean(json.kompetensiSelesai),
         sedangUjian: Boolean(json.sedangUjian),
@@ -598,8 +664,16 @@ export default function UjianSKD() {
       setLobbyStatus(statusPayload);
 
       try {
-        localStorage.setItem(PARTICIPANT_LOBBY_STORAGE_KEY, JSON.stringify(statusPayload));
-        localStorage.setItem(TERMS_ACCEPTED_STORAGE_KEY, 'true');
+        const isDone =
+          (statusPayload.kompetensiSelesai && statusPayload.wawancaraApproved) ||
+          Boolean(statusPayload.statusKelulusan && statusPayload.statusKelulusan.trim());
+        if (isDone) {
+          localStorage.removeItem(PARTICIPANT_LOBBY_STORAGE_KEY);
+          localStorage.removeItem(TERMS_ACCEPTED_STORAGE_KEY);
+        } else {
+          localStorage.setItem(PARTICIPANT_LOBBY_STORAGE_KEY, JSON.stringify(statusPayload));
+          localStorage.setItem(TERMS_ACCEPTED_STORAGE_KEY, 'true');
+        }
       } catch {}
 
       setHasAcceptedTerms(true);
@@ -630,7 +704,7 @@ export default function UjianSKD() {
         params.set('nama', lobbyStatus?.namaPeserta || namaPeserta);
       }
 
-      const res = await fetch(`/api/start?${params.toString()}`);
+      const res = await fetch(`/api/start?${params.toString()}`, { cache: 'no-store' });
       if (res.status === 404) {
         // Jika baris peserta dihapus dari Google Sheets oleh Admin, keluarkan kembali ke form awal
         forceEjectMissingParticipant();
@@ -669,6 +743,7 @@ export default function UjianSKD() {
           alamatPeserta: json.alamatPeserta,
           statusUjian: json.statusUjian || '',
           statusWawancara: json.statusWawancara || '',
+          statusKelulusan: json.statusKelulusan || '',
           kompetensiApproved: Boolean(json.kompetensiApproved),
           kompetensiSelesai: Boolean(json.kompetensiSelesai),
           sedangUjian: Boolean(json.sedangUjian),
@@ -679,7 +754,15 @@ export default function UjianSKD() {
         setMonitoringRowNumber(updated.rowNumber);
         setLobbyError('');
         try {
-          localStorage.setItem(PARTICIPANT_LOBBY_STORAGE_KEY, JSON.stringify(updated));
+          const isDone =
+            (updated.kompetensiSelesai && updated.wawancaraApproved) ||
+            Boolean(updated.statusKelulusan && updated.statusKelulusan.trim());
+          if (isDone) {
+            localStorage.removeItem(PARTICIPANT_LOBBY_STORAGE_KEY);
+            localStorage.removeItem(TERMS_ACCEPTED_STORAGE_KEY);
+          } else {
+            localStorage.setItem(PARTICIPANT_LOBBY_STORAGE_KEY, JSON.stringify(updated));
+          }
         } catch {}
       }
     } catch {
@@ -841,6 +924,7 @@ export default function UjianSKD() {
         terjawabCount={terjawabCount}
         totalSoal={soalList.length}
         wawancaraApproved={Boolean(lobbyStatus?.wawancaraApproved)}
+        statusKelulusan={lobbyStatus?.statusKelulusan || ''}
         onBackToLobby={() => {
           setIsLoggedIn(false);
           setIsFinished(false);

@@ -44,7 +44,7 @@ export async function getCachedMonitoringRows(forceFresh = false): Promise<any[]
       const { sheets, spreadsheetId } = await getGoogleSheetsInstance();
       const res = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: `${SHEET_NAMES.MONITORING}!A2:K500`,
+        range: `${SHEET_NAMES.MONITORING}!A2:Z500`,
       });
       const rows = res.data.values || [];
       cache.rows = rows;

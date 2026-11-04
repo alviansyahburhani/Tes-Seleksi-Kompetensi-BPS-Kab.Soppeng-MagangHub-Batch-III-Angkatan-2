@@ -32,12 +32,56 @@ export default function ParticipantLobbyView({
   // State Cooldown tombol manual Cek Status Terbaru (10 detik)
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
 
+  // State Izin Notifikasi Pengumuman Kelulusan Browser
+  const [notifPermission, setNotifPermission] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('default');
+  const [notifFeedback, setNotifFeedback] = useState<string>('');
+  const [hasNotifiedResult, setHasNotifiedResult] = useState(false);
+
   // State Modal Pengajuan Ganti Akun / Logout ke Admin
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [alasanInput, setAlasanInput] = useState('');
   const [submittingRequest, setSubmittingRequest] = useState(false);
   const [requestSubmittedSuccess, setRequestSubmittedSuccess] = useState(false);
   const [requestError, setRequestError] = useState('');
+
+  // Cek dukungan & status izin Notification API saat komponen dimuat
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      setNotifPermission('unsupported');
+      return;
+    }
+    setNotifPermission(Notification.permission);
+  }, []);
+
+  // Fungsi meminta izin notifikasi browser kepada peserta
+  const handleRequestNotificationPermission = async () => {
+    setNotifFeedback('');
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      setNotifPermission('unsupported');
+      setNotifFeedback('Browser perangkat Anda tidak mendukung fitur notifikasi sistem.');
+      return;
+    }
+
+    try {
+      const perm = await Notification.requestPermission();
+      setNotifPermission(perm);
+      if (perm === 'granted') {
+        setNotifFeedback('Notifikasi pengumuman berhasil diaktifkan! Anda akan menerima pemberitahuan saat hasil seleksi keluar.');
+        try {
+          new Notification('Notifikasi Seleksi BPS Kab. Soppeng Aktif', {
+            body: `Halo ${lobbyStatus.namaPeserta}, notifikasi pengumuman kelulusan Anda telah aktif.`,
+            icon: '/BPSIndonesia.svg',
+          });
+        } catch {
+          // Abaikan jika gagal memunculkan test notification pada mobile browser tertentu
+        }
+      } else if (perm === 'denied') {
+        setNotifFeedback('Izin notifikasi ditolak di pengaturan browser. Silakan izinkan notifikasi pada ikon gembok di address bar browser Anda.');
+      }
+    } catch {
+      setNotifFeedback('Gagal meminta izin notifikasi pada browser ini.');
+    }
+  };
 
   // Timer Cooldown 10 detik setelah menekan tombol Cek Status Terbaru
   useEffect(() => {
@@ -116,9 +160,46 @@ export default function ParticipantLobbyView({
     wawancaraApproved,
     statusUjian,
     statusWawancara,
+    statusKelulusan,
   } = lobbyStatus;
 
   const bothCompleted = kompetensiSelesai && wawancaraApproved;
+
+  // Evaluasi status kelulusan dari Kolom Kelulusan di Monitoring_Peserta
+  const rawKelulusan = (statusKelulusan || '').trim();
+  const upperKelulusan = rawKelulusan.toUpperCase();
+  const hasKelulusanValue = rawKelulusan.length > 0;
+  const isTidakLulus =
+    hasKelulusanValue &&
+    (upperKelulusan.includes('TIDAK') ||
+      upperKelulusan.includes('BELUM') ||
+      upperKelulusan.includes('GAGAL') ||
+      upperKelulusan.includes('DITOLAK'));
+  const isLulus =
+    hasKelulusanValue &&
+    !isTidakLulus &&
+    (upperKelulusan.includes('LULUS') ||
+      upperKelulusan.includes('LOLOS') ||
+      upperKelulusan.includes('DITERIMA') ||
+      upperKelulusan.includes('PASS'));
+
+  // Kirim notifikasi browser otomatis begitu status kelulusan terisi & izin notifikasi granted
+  // (Tanpa membocorkan status Lulus/Tidak Lulus di dalam teks notifikasi agar peserta login terlebih dahulu untuk melihat hasilnya)
+  useEffect(() => {
+    if (!hasKelulusanValue || hasNotifiedResult) return;
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      try {
+        const title = '📢 Pengumuman Hasil Seleksi BPS Kab. Soppeng';
+        const body = `Halo ${namaPeserta}, pengumuman hasil akhir Seleksi MagangHub BPS Kab. Soppeng telah tersedia. Silakan masuk/login pada website menggunakan email Anda untuk melihat hasil kelulusan.`;
+        new Notification(title, {
+          body,
+          icon: '/BPSIndonesia.svg',
+        });
+        setHasNotifiedResult(true);
+      } catch {
+      }
+    }
+  }, [hasKelulusanValue, hasNotifiedResult, namaPeserta]);
 
   return (
     <main className="min-h-screen bg-[#FFFDF7] flex flex-col justify-between p-4 md:p-8 relative overflow-hidden">
@@ -340,17 +421,6 @@ export default function ParticipantLobbyView({
           {/* ================================================================= */}
           {/* BANNER PEMBERITAHUAN ARAHAN OTOMATIS SESUAI KONDISI PESERTA       */}
           {/* ================================================================= */}
-          {bothCompleted && (
-            <div className="bg-[#8CC63F] border-4 border-slate-950 p-5 shadow-[6px_6px_0px_0px_#0f172a] mb-6">
-              <p className="text-sm md:text-base font-black uppercase text-slate-950 mb-1">
-                🎉 Selamat! Seluruh Tahapan Seleksi Telah Selesai
-              </p>
-              <p className="text-xs md:text-sm font-bold text-slate-900 leading-relaxed">
-                Anda tercatat telah menyelesaikan <strong>Tes Seleksi Kompetensi</strong> dan telah di-approve mengikuti <strong>Tes Wawancara</strong>. Terima kasih atas partisipasi Anda pada Seleksi MagangHub BPS Kab. Soppeng Batch III!
-              </p>
-            </div>
-          )}
-
           {!bothCompleted && wawancaraApproved && !kompetensiSelesai && (
             <div className="bg-[#00AEEF] border-4 border-slate-950 p-5 shadow-[6px_6px_0px_0px_#0f172a] mb-6">
               <div className="flex items-center gap-2 mb-1.5">
@@ -590,6 +660,266 @@ export default function ParticipantLobbyView({
           </div>
         </div>
       </div>
+
+      {/* ===================================================================== */}
+      {/* POP-UP OTOMATIS SAAT SELURUH TAHAP SELEKSI SELESAI / HASIL KELULUSAN  */}
+      {/* ===================================================================== */}
+      {hasAcceptedTerms && (bothCompleted || hasKelulusanValue) && (
+        <div className="fixed inset-0 bg-slate-950/85 z-50 overflow-y-auto flex items-center justify-center p-4">
+          <div className="bg-[#FFFDF7] border-4 border-slate-950 max-w-lg w-full shadow-[12px_12px_0px_0px_#00AEEF] overflow-hidden my-auto">
+            {/* Top Bar BPS */}
+            <div className="grid grid-cols-3 h-3.5 border-b-4 border-slate-950">
+              <div className="bg-[#00AEEF] border-r-4 border-slate-950" />
+              <div className="bg-[#8CC63F] border-r-4 border-slate-950" />
+              <div className="bg-[#F7941D]" />
+            </div>
+
+            {/* Header Pop-up */}
+            <div className="bg-slate-950 text-white px-5 md:px-6 py-3.5 border-b-4 border-slate-950 flex items-center justify-between gap-2">
+              <span className="font-black uppercase tracking-wider text-xs md:text-sm">
+                {hasKelulusanValue
+                  ? 'Pengumuman Hasil Akhir Seleksi'
+                  : 'Seluruh Tahapan Seleksi Selesai'}
+              </span>
+              <span
+                className={`text-slate-950 text-[10px] font-black uppercase px-2.5 py-0.5 border border-white ${hasKelulusanValue
+                  ? isLulus
+                    ? 'bg-[#8CC63F]'
+                    : 'bg-[#F7941D]'
+                  : 'bg-[#00AEEF]'
+                  }`}
+              >
+                {hasKelulusanValue ? rawKelulusan.toUpperCase() : 'SELESAI 2 TAHAP'}
+              </span>
+            </div>
+
+            {/* Isi Pop-up */}
+            <div className="p-5 md:p-6 space-y-4">
+              {/* Identitas Ringkas di dalam Pop-up */}
+              <div className="bg-white border-3 border-slate-950 p-3.5 shadow-[4px_4px_0px_0px_#0f172a] flex items-center gap-3.5">
+                <div className="w-12 h-12 bg-[#FFFDF7] border-2 border-slate-950 p-1.5 flex items-center justify-center shrink-0">
+                  <img
+                    src="/BPSIndonesia.svg"
+                    alt="Logo BPS Indonesia"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    Peserta Seleksi MagangHub BPS Soppeng
+                  </p>
+                  <p className="text-base font-black text-slate-950 truncate">{namaPeserta}</p>
+                  <span className="inline-block mt-1 bg-[#00AEEF] text-slate-950 font-black text-[11px] px-2.5 py-0.5 border-2 border-slate-950">
+                    {posisiDilamar}
+                  </span>
+                </div>
+              </div>
+
+              {hasKelulusanValue ? (
+                isLulus ? (
+                  <div className="bg-[#8CC63F] border-4 border-slate-950 p-5 shadow-[6px_6px_0px_0px_#0f172a] space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 bg-white border-3 border-slate-950 flex items-center justify-center shadow-[3px_3px_0px_0px_#0f172a] shrink-0">
+                        <svg
+                          className="w-6 h-6 stroke-slate-950"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                          <polyline points="22 4 12 14.01 9 11.01" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-black uppercase text-slate-950 leading-tight">
+                          Selamat! Anda Dinyatakan LULUS
+                        </h3>
+                      </div>
+                    </div>
+                    <p className="text-xs md:text-sm font-bold text-slate-950 leading-relaxed">
+                      Selamat kepada Saudara/i <strong>{namaPeserta}</strong>! Berdasarkan hasil penilaian <strong>Tes Seleksi Kompetensi</strong> dan <strong>Tes Wawancara</strong>, Anda dinyatakan <strong>LULUS ({rawKelulusan})</strong> pada Seleksi MagangHub BPS Kabupaten Soppeng Batch III Angkatan 2 Tahun 2026.
+                    </p>
+
+                    {/* Langkah Tindak Lanjut Melengkapi Monev Peserta Lulus */}
+                    <div className="bg-white border-3 border-slate-950 p-3.5 shadow-[3px_3px_0px_0px_#0f172a] space-y-2">
+                      <p className="text-xs font-black uppercase text-slate-950 flex items-center gap-1.5">
+                        <span className="inline-block w-3 h-3 bg-[#00AEEF] border border-slate-950 shrink-0" />
+                        Langkah Selanjutnya Lengkapi MagangHub Anda:
+                      </p>
+                      <ol className="text-xs font-bold text-slate-900 list-decimal list-inside space-y-1.5 leading-relaxed">
+                        <li>
+                          Masuk ke akun <strong>MagangHub</strong> yang Anda miliki.
+                        </li>
+                        <li>
+                          Lengkapi seluruh <strong>data administrasi, berkas, dan instrumen Maganghub</strong> yang diwajibkan pada sistem.
+                        </li>
+                        <li>
+                          Pastikan seluruh kelengkapan MagangHub anda telah terisi dengan benar dan lakukan konfirmasi kepada <strong>Panitia Pelaksana BPS Kabupaten Soppeng</strong>.
+                        </li>
+                      </ol>
+                    </div>
+                  </div>
+                ) : isTidakLulus ? (
+                  <div className="bg-[#FFF5E6] border-4 border-slate-950 p-5 shadow-[6px_6px_0px_0px_#0f172a] space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 bg-[#F7941D] border-3 border-slate-950 flex items-center justify-center shadow-[3px_3px_0px_0px_#0f172a] shrink-0">
+                        <svg
+                          className="w-6 h-6 stroke-slate-950"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <circle cx="12" cy="12" r="10" />
+                          <line x1="12" x2="12" y1="8" y2="12" />
+                          <line x1="12" x2="12.01" y1="16" y2="16" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-black uppercase text-slate-950 leading-tight">
+                          Pemberitahuan Hasil Akhir Seleksi
+                        </h3>
+                      </div>
+                    </div>
+                    <p className="text-xs md:text-sm font-bold text-slate-900 leading-relaxed">
+                      Terima kasih atas partisipasi dan dedikasi Saudara/i <strong>{namaPeserta}</strong> dalam mengikuti seluruh rangkaian Seleksi MagangHub BPS Kabupaten Soppeng Batch III. Berdasarkan hasil akhir penilaian, Anda dinyatakan <strong>{rawKelulusan}</strong> pada periode seleksi kali ini. Tetap semangat dan sukses selalu untuk kesempatan berikutnya!
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-[#E6F7FF] border-4 border-slate-950 p-5 shadow-[6px_6px_0px_0px_#0f172a] space-y-2">
+                    <span className="inline-block bg-slate-950 text-white text-[10px] font-black uppercase px-2 py-0.5">
+                      STATUS AKHIR: {rawKelulusan.toUpperCase()}
+                    </span>
+                    <h3 className="text-base md:text-lg font-black uppercase text-slate-950">
+                      Informasi Hasil Akhir: {rawKelulusan}
+                    </h3>
+                    <p className="text-xs font-bold text-slate-800 leading-relaxed">
+                      Status hasil akhir seleksi Anda telah diperbarui oleh Panitia Pelaksana pada sistem Monitoring Peserta.
+                    </p>
+                  </div>
+                )
+              ) : (
+                <>
+                  {/* Banner Seluruh Tahapan Seleksi Telah Selesai */}
+                  <div className="bg-[#8CC63F] border-3 border-slate-950 p-4 shadow-[4px_4px_0px_0px_#0f172a]">
+                    <p className="text-sm font-black uppercase text-slate-950 mb-1 flex items-center gap-2">
+                      <span className="bg-white border-2 border-slate-950 w-6 h-6 inline-flex items-center justify-center text-xs shrink-0">
+                        ✓
+                      </span>
+                      <span>Selamat! Seluruh Tahapan Seleksi Telah Selesai</span>
+                    </p>
+                    <p className="text-xs font-bold text-slate-900 leading-relaxed">
+                      Anda tercatat telah menyelesaikan <strong>Tes Seleksi Kompetensi</strong> dan telah di-approve mengikuti <strong>Tes Wawancara</strong>. Terima kasih atas partisipasi Anda pada Seleksi MagangHub BPS Kab. Soppeng Batch III!
+                    </p>
+                  </div>
+
+                  {/* Box Menunggu Pengumuman & Izin Notifikasi */}
+                  <div className="bg-[#FFF5E6] border-3 border-slate-950 p-4 shadow-[4px_4px_0px_0px_#0f172a] space-y-3">
+                    <div className="flex items-start gap-3">
+                      <span className="w-9 h-9 bg-[#00AEEF] border-2 border-slate-950 flex items-center justify-center shadow-[2px_2px_0px_0px_#0f172a] shrink-0 mt-0.5">
+                        <svg
+                          className="w-4 h-4 stroke-slate-950"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                        </svg>
+                      </span>
+                      <div>
+                        <p className="text-xs md:text-sm font-black uppercase text-slate-950">
+                          Menunggu Informasi Pengumuman Kelulusan
+                        </p>
+                        <p className="text-xs font-bold text-slate-800 leading-relaxed mt-1">
+                          Saat ini hasil akhir kelulusan Anda masih dalam proses rekapitulasi oleh Panitia. Silakan <strong>aktifkan izin notifikasi</strong> di bawah ini agar Anda mendapatkan pemberitahuan saat pengumuman kelulusan telah tersedia.
+                        </p>
+                      </div>
+                    </div>
+
+                    {notifPermission === 'granted' ? (
+                      <div className="w-full bg-[#8CC63F] border-3 border-slate-950 py-3 px-4 shadow-[3px_3px_0px_0px_#0f172a] flex items-center justify-center gap-2 text-xs font-black uppercase text-slate-950">
+                        <svg
+                          className="w-4 h-4 stroke-slate-950 shrink-0"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        <span>Notifikasi Update Kelulusan Sudah Aktif</span>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleRequestNotificationPermission}
+                        className="w-full bg-[#00AEEF] hover:bg-[#33bff3] text-slate-950 font-black uppercase tracking-wider text-xs md:text-sm py-3.5 px-5 border-3 border-slate-950 shadow-[5px_5px_0px_0px_#0f172a] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[3px_3px_0px_0px_#0f172a] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <svg
+                          className="w-4 h-4 stroke-slate-950 shrink-0"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                        </svg>
+                        <span>Aktifkan Notifikasi Update Kelulusan</span>
+                      </button>
+                    )}
+
+                    {notifFeedback && (
+                      <div className="bg-white border-2 border-slate-950 p-2.5 text-xs font-bold text-slate-900">
+                        {notifFeedback}
+                      </div>
+                    )}
+
+                    {/* Informasi Cara Mengecek Pengumuman Kelulusan Nanti via Login Email */}
+                    <div className="bg-white border-2 border-slate-950 p-3 shadow-[2px_2px_0px_0px_#0f172a] flex items-start gap-2.5">
+                      <span className="w-6 h-6 bg-[#F7941D] border-2 border-slate-950 flex items-center justify-center shrink-0 mt-0.5">
+                        <svg
+                          className="w-3.5 h-3.5 stroke-slate-950"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <rect x="2" y="4" width="20" height="16" rx="2" />
+                          <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                        </svg>
+                      </span>
+                      <p className="text-[11px] font-bold text-slate-900 leading-relaxed">
+                        <strong>Cara Mengecek Pengumuman Kelulusan:</strong> Untuk melihat hasil kelulusan nantinya, silakan masuk kembali ke website ini dan pilih tab <strong>&quot;Sudah Absen&quot;</strong> di halaman utama menggunakan email Anda (<strong>{emailPeserta}</strong>).
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Tombol Keluar / Selesai agar perangkat bersih dan peserta dapat login kembali dengan email untuk mengecek */}
+              <div className="pt-2 border-t-2 border-slate-950/15">
+                <button
+                  type="button"
+                  onClick={onLogoutIdentity}
+                  className="w-full bg-white hover:bg-slate-100 text-slate-950 font-black uppercase tracking-wider text-xs py-3 px-4 border-3 border-slate-950 shadow-[4px_4px_0px_0px_#0f172a] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_#0f172a] transition-all cursor-pointer"
+                >
+                  Selesai &amp; Keluar ke Halaman Utama
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ===================================================================== */}
       {/* POP-UP PENGAJUAN GANTI AKUN / KELUAR DARI LOBBY KE ADMIN              */}
