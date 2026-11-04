@@ -171,7 +171,7 @@ export default function MonitoringAdminPage() {
         'x-admin-pin': adminPin,
       },
       body: JSON.stringify({ alertId }),
-    }).catch(() => { });
+    }).catch(() => {});
   };
 
   // Handler Persetujuan / Penolakan Ganti Akun Peserta
@@ -328,9 +328,13 @@ export default function MonitoringAdminPage() {
 
   const getPosisiBadgeColor = (posisi: string) => {
     const pos = posisi.toUpperCase();
-    if (pos.includes('PUBLISITAS') || pos.includes('HUMAS')) return 'bg-[#F7941D]';
-    if (pos.includes('KEUANGAN')) return 'bg-[#8CC63F]';
-    return 'bg-[#00AEEF]';
+    if (pos.includes('PUBLISITAS') || pos.includes('HUMAS')) {
+      return 'bg-[#F7941D] text-slate-950';
+    }
+    if (pos.includes('KEUANGAN')) {
+      return 'bg-[#8CC63F] text-slate-950';
+    }
+    return 'bg-[#00AEEF] text-white';
   };
 
   const handlePinSubmit = (e: React.FormEvent) => {
@@ -358,27 +362,29 @@ export default function MonitoringAdminPage() {
   // GERBANG KEAMANAN PIN ADMIN (Mencegah peserta mengakses /monitoring tanpa izin)
   if (!isAuthorized) {
     return (
-      <div className="min-h-screen bg-[#FFFDF7] flex flex-col">
-        <div className="grid grid-cols-3 h-3 border-b-2 border-slate-950">
+      <div className="min-h-screen bg-[#F8FAFC] flex flex-col">
+        <div className="grid grid-cols-3 h-1.5 w-full">
           <div className="bg-[#00AEEF]" />
           <div className="bg-[#8CC63F]" />
           <div className="bg-[#F7941D]" />
         </div>
 
         <div className="flex-1 flex items-center justify-center p-4">
-          <div className="bg-white border-4 border-slate-950 max-w-md w-full shadow-[10px_10px_0px_0px_#0f172a] overflow-hidden">
-            <div className="bg-slate-950 text-white px-6 py-4 border-b-4 border-slate-950 flex items-center justify-between">
-              <span className="font-black uppercase tracking-wider text-sm">
+          <div className="bg-white rounded-3xl border-2 border-slate-200/90 max-w-md w-full shadow-xl overflow-hidden">
+            <div className="h-2 w-full bg-[#00AEEF]" />
+
+            <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+              <span className="font-bold uppercase tracking-wider text-xs md:text-sm">
                 Login Admin MagangHub BPS
               </span>
-              <span className="bg-[#F7941D] text-slate-950 text-xs font-black px-2 py-0.5 border border-white">
+              <span className="bg-[#F7941D] text-slate-950 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full">
                 7312
               </span>
             </div>
 
-            <form onSubmit={handlePinSubmit} className="p-6 space-y-4">
+            <form onSubmit={handlePinSubmit} className="p-6 md:p-7 space-y-5">
               <div className="flex items-center gap-3.5">
-                <div className="w-14 h-14 bg-[#FFFDF7] border-3 border-slate-950 p-2 shadow-[4px_4px_0px_0px_#0f172a] flex items-center justify-center shrink-0">
+                <div className="w-14 h-14 bg-slate-50 border border-slate-200 rounded-2xl p-2.5 shadow-xs flex items-center justify-center shrink-0">
                   <img
                     src="/BPSIndonesia.svg"
                     alt="Logo BPS Indonesia"
@@ -386,24 +392,27 @@ export default function MonitoringAdminPage() {
                   />
                 </div>
                 <div>
-                  <h1 className="font-black text-slate-950 text-lg uppercase leading-tight">
+                  <h1 className="font-extrabold text-slate-900 text-base md:text-lg leading-snug">
                     Verifikasi PIN Monitoring
                   </h1>
-                  <p className="text-xs font-bold text-slate-600 mt-1">
+                  <p className="text-xs font-medium text-slate-500 mt-0.5 leading-relaxed">
                     Masukkan PIN Admin untuk membuka dashboard pantauan peserta dan kontrol alarm.
                   </p>
                 </div>
               </div>
 
               {pinError && (
-                <div className="bg-red-100 border-3 border-slate-950 p-3 text-xs font-black text-red-700 shadow-[3px_3px_0px_0px_#0f172a]">
-                  ⚠️ {pinError}
+                <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-3.5 text-xs font-bold text-red-700 flex items-center gap-2.5">
+                  <span className="w-6 h-6 rounded-lg bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+                    !
+                  </span>
+                  <span>{pinError}</span>
                 </div>
               )}
 
               <div>
-                <label className="block text-xs font-black uppercase text-slate-950 mb-1.5">
-                  PIN Admin:
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                  PIN Admin
                 </label>
                 <input
                   type="password"
@@ -411,21 +420,21 @@ export default function MonitoringAdminPage() {
                   onChange={(e) => setPinInput(e.target.value)}
                   placeholder="Masukkan PIN Admin..."
                   autoFocus
-                  className="w-full px-4 py-3 bg-[#FFFDF7] border-3 border-slate-950 font-black text-base text-slate-950 focus:outline-none focus:bg-[#E6F7FF] shadow-[4px_4px_0px_0px_#0f172a]"
+                  className="w-full px-4 py-3.5 bg-slate-50 focus:bg-white rounded-xl border-2 border-slate-200 focus:border-[#00AEEF] focus:ring-3 focus:ring-[#00AEEF]/15 font-bold text-base text-slate-900 placeholder:text-slate-400 focus:outline-none transition-all"
                 />
               </div>
 
-              <div className="flex items-center gap-3 pt-2">
+              <div className="flex items-center gap-3 pt-1">
                 <button
                   type="submit"
                   disabled={refreshing}
-                  className="flex-1 bg-[#8CC63F] hover:bg-[#9bd64d] text-slate-950 font-black uppercase text-xs tracking-wider py-3 px-4 border-3 border-slate-950 shadow-[4px_4px_0px_0px_#0f172a] cursor-pointer transition"
+                  className="flex-1 bg-[#8CC63F] hover:bg-[#7BB335] disabled:opacity-50 text-slate-950 font-bold uppercase text-xs tracking-wider py-3.5 px-4 rounded-xl shadow-sm hover:shadow cursor-pointer transition-all"
                 >
                   {refreshing ? 'Memverifikasi...' : 'Buka Monitoring'}
                 </button>
                 <Link
                   href="/"
-                  className="bg-white hover:bg-slate-100 text-slate-950 font-black uppercase text-xs tracking-wider py-3 px-4 border-3 border-slate-950 shadow-[4px_4px_0px_0px_#0f172a]"
+                  className="bg-white hover:bg-slate-100 text-slate-700 font-bold uppercase text-xs tracking-wider py-3.5 px-4 rounded-xl border-2 border-slate-200 transition-all"
                 >
                   Kembali
                 </Link>
@@ -438,19 +447,19 @@ export default function MonitoringAdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFFDF7] flex flex-col">
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col">
       {/* TOP COLOR BAR BPS */}
-      <div className="grid grid-cols-3 h-3 border-b-2 border-slate-950">
+      <div className="grid grid-cols-3 h-1.5 w-full sticky top-0 z-40">
         <div className="bg-[#00AEEF]" />
         <div className="bg-[#8CC63F]" />
         <div className="bg-[#F7941D]" />
       </div>
 
       {/* HEADER DASHBOARD MONITORING */}
-      <header className="bg-white border-b-4 border-slate-950 sticky top-0 z-30 px-4 md:px-8 py-4">
+      <header className="bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs sticky top-1.5 z-30 px-4 md:px-8 py-3.5">
         <div className="max-w-[1440px] mx-auto flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 bg-[#FFFDF7] border-2 border-slate-950 p-1.5 shadow-[3px_3px_0px_0px_#0f172a] flex items-center justify-center shrink-0">
+            <div className="w-11 h-11 bg-slate-50 border border-slate-200 rounded-xl p-1.5 shadow-2xs flex items-center justify-center shrink-0">
               <img
                 src="/BPSIndonesia.svg"
                 alt="Logo BPS"
@@ -458,90 +467,210 @@ export default function MonitoringAdminPage() {
               />
             </div>
             <div>
-              <h1 className="font-black text-slate-950 text-xl md:text-2xl uppercase tracking-tight leading-none">
-                Dashboard Monitoring &amp; Approve Seleksi • BPS
+              <h1 className="font-extrabold text-slate-900 text-lg md:text-xl tracking-tight leading-snug">
+                Dashboard Monitoring &amp; Approve Seleksi{' '}
+                <span className="text-[#0284C7]">• BPS Soppeng</span>
               </h1>
-              <p className="text-xs font-bold text-slate-600 mt-1">
+              <p className="text-xs font-medium text-slate-500 mt-0.5">
                 Pantauan Ujian Real-Time, Approve Akses Kompetensi, &amp; Approve Wawancara
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 ml-auto">
-            <div className="bg-[#FFFDF7] border-2 border-slate-950 px-3 py-1.5 text-xs font-black text-slate-950">
-              Sinkron Terakhir: <span className="font-mono">{lastUpdated}</span>
+          <div className="flex flex-wrap items-center gap-2.5 ml-auto">
+            <div className="bg-slate-100 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-semibold text-slate-600 flex items-center gap-1.5">
+              <svg
+                className="w-3.5 h-3.5 text-[#00AEEF] shrink-0"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+              <span>Sinkron:</span>
+              <span className="font-mono font-bold text-slate-900">{lastUpdated}</span>
             </div>
 
             <button
               type="button"
               onClick={() => fetchMonitoringData(false)}
               disabled={refreshing}
-              className="bg-[#00AEEF] hover:bg-[#24beff] disabled:opacity-50 text-slate-950 text-xs font-black uppercase tracking-wider px-4 py-2 border-3 border-slate-950 shadow-[4px_4px_0px_0px_#0f172a] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_#0f172a] transition-all cursor-pointer"
+              className="bg-[#00AEEF] hover:bg-[#0299D4] disabled:opacity-50 text-white text-xs font-bold uppercase tracking-wider px-4 py-2.5 rounded-xl shadow-xs hover:shadow transition-all cursor-pointer flex items-center gap-1.5"
             >
-              {refreshing ? 'Memuat...' : '↻ Refresh Sekarang'}
+              <svg
+                className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+                <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                <path d="M16 16h5v5" />
+              </svg>
+              <span>{refreshing ? 'Memuat...' : 'Refresh Data'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleLogoutAdmin}
+              title="Keluar dari Sesi Admin"
+              className="bg-white hover:bg-red-50 text-slate-600 hover:text-red-600 border border-slate-200 hover:border-red-200 text-xs font-bold uppercase tracking-wider px-3.5 py-2.5 rounded-xl transition-all cursor-pointer"
+            >
+              Keluar
             </button>
           </div>
         </div>
       </header>
 
-      {/* LAYOUT UTAMA: SIDEBAR KIRI (SUPER RAMPING & CLEAN SAAT DI-HIDE) + KONTEN KANAN */}
-      <div className="flex-1 max-w-[1440px] w-full mx-auto p-4 md:p-6 flex flex-col lg:flex-row gap-4 md:gap-5 items-start">
+      {/* LAYOUT UTAMA: SIDEBAR DOCK MENTOK KIRI + KONTEN KANAN */}
+      <div className="flex-1 w-full flex flex-col lg:flex-row items-start">
         {/* ================================================================= */}
-        {/* SIDEBAR NAVIGASI ADMIN (3 MENU UTAMA + TOMBOL HIDE/COLLAPSE)       */}
+        {/* SIDEBAR NAVIGASI ADMIN (CURVED DOCK MENTOK KIRI TERBUKA & TERTUTUP) */}
         {/* ================================================================= */}
         <aside
-          className={`w-full ${isSidebarCollapsed
-            ? 'lg:w-14 shadow-[4px_4px_0px_0px_#0f172a]'
-            : 'lg:w-64 shadow-[8px_8px_0px_0px_#0f172a]'
-            } shrink-0 bg-white border-3 border-slate-950 lg:sticky lg:top-24 transition-all duration-200`}
+          className={`w-full ${
+            isSidebarCollapsed
+              ? 'lg:w-16 bg-[#00AEEF] text-white shadow-xl'
+              : 'lg:w-72 bg-white text-slate-800 border-y-2 border-r-2 border-slate-200/90 shadow-lg'
+          } lg:my-8 lg:rounded-r-[36px] shrink-0 lg:sticky lg:top-24 transition-all duration-300 ease-in-out relative z-20`}
         >
+          {/* Ornamen Lengkungan Halus Atas & Bawah (Menyesuaikan Warna Terbuka Putih / Tertutup Biru) */}
+          <div
+            aria-hidden="true"
+            className={`hidden lg:block absolute -top-7 left-0 w-7 h-7 bg-transparent rounded-bl-3xl pointer-events-none transition-all duration-300 ${
+              isSidebarCollapsed
+                ? 'shadow-[-10px_10px_0_0_#00AEEF]'
+                : 'shadow-[-10px_10px_0_0_#ffffff] border-l-2 border-b-2 border-slate-200/90'
+            }`}
+          />
+          <div
+            aria-hidden="true"
+            className={`hidden lg:block absolute -bottom-7 left-0 w-7 h-7 bg-transparent rounded-tl-3xl pointer-events-none transition-all duration-300 ${
+              isSidebarCollapsed
+                ? 'shadow-[-10px_-10px_0_0_#00AEEF]'
+                : 'shadow-[-10px_-10px_0_0_#ffffff] border-l-2 border-t-2 border-slate-200/90'
+            }`}
+          />
+
           {/* Header Sidebar + Tombol Hide / Expand */}
           <div
-            className={`bg-slate-950 text-white border-b-3 border-slate-950 flex items-center ${isSidebarCollapsed ? 'p-1.5 justify-center' : 'px-3 py-2.5 justify-between'
-              }`}
+            className={`flex items-center ${
+              isSidebarCollapsed
+                ? 'pt-5 pb-2 px-2 justify-center'
+                : 'pt-5 pb-3.5 px-4 justify-between border-b border-slate-200/80'
+            }`}
           >
             {!isSidebarCollapsed && (
-              <p className="text-[11px] font-black uppercase tracking-wider truncate pl-0.5">
-                Panel Admin
-              </p>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="w-9 h-9 rounded-xl bg-[#00AEEF]/12 text-[#0284C7] flex items-center justify-center shrink-0">
+                  <svg
+                    className="w-4.5 h-4.5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect x="3" y="3" width="7" height="7" rx="1.5" />
+                    <rect x="14" y="3" width="7" height="7" rx="1.5" />
+                    <rect x="14" y="14" width="7" height="7" rx="1.5" />
+                    <rect x="3" y="14" width="7" height="7" rx="1.5" />
+                  </svg>
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-extrabold uppercase tracking-wider text-slate-900 truncate">
+                    Panel Admin
+                  </p>
+                  <p className="text-[10px] font-medium text-slate-500 truncate">
+                    Kontrol Seleksi BPS
+                  </p>
+                </div>
+              </div>
             )}
+
             <button
               type="button"
               onClick={() => setIsSidebarCollapsed((prev) => !prev)}
-              title={isSidebarCollapsed ? 'Buka Sidebar' : 'Kecilkan Sidebar'}
-              className="w-7 h-7 bg-[#FFFDF7] hover:bg-[#F7941D] text-slate-950 font-black text-xs border-2 border-slate-950 flex items-center justify-center cursor-pointer transition shrink-0"
+              title={isSidebarCollapsed ? 'Buka Panel Sidebar' : 'Kecilkan ke Samping Kiri'}
+              className={`flex items-center justify-center cursor-pointer transition-all shrink-0 ${
+                isSidebarCollapsed
+                  ? 'w-11 h-11 rounded-2xl bg-white text-[#00AEEF] shadow-md hover:scale-105'
+                  : 'w-9 h-9 rounded-xl bg-slate-100 hover:bg-[#00AEEF] text-slate-600 hover:text-white shadow-2xs'
+              }`}
             >
-              {isSidebarCollapsed ? '»' : '«'}
+              {isSidebarCollapsed ? (
+                <svg
+                  className="w-5 h-5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect x="3" y="3" width="7" height="7" rx="1.5" />
+                  <rect x="14" y="3" width="7" height="7" rx="1.5" />
+                  <rect x="14" y="14" width="7" height="7" rx="1.5" />
+                  <rect x="3" y="14" width="7" height="7" rx="1.5" />
+                </svg>
+              ) : (
+                <svg
+                  className="w-4 h-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+              )}
             </button>
           </div>
 
           <div
             className={
               isSidebarCollapsed
-                ? 'p-1.5 flex lg:flex-col items-center justify-center gap-2'
-                : 'p-2.5 space-y-2'
+                ? 'py-4 px-2 flex lg:flex-col items-center justify-center gap-3.5'
+                : 'p-3.5 space-y-2'
             }
           >
-            {/* MENU 1: MONITORING UJIAN (TETAP DIPERTAHANKAN 100%) */}
+            {/* MENU 1: MONITORING UJIAN */}
             <button
               type="button"
               onClick={() => setActiveTab('MONITORING')}
               title={`Monitoring Ujian (${pesertaList.length} Peserta)`}
-              className={`border-2 border-slate-950 transition-all cursor-pointer relative ${isSidebarCollapsed
-                ? 'w-9 h-9 flex items-center justify-center'
-                : 'w-full p-3 text-left flex items-center justify-between gap-2'
-                } ${activeTab === 'MONITORING'
-                  ? 'bg-[#00AEEF] text-slate-950 shadow-[2px_2px_0px_0px_#0f172a]'
-                  : 'bg-[#FFFDF7] hover:bg-slate-100 text-slate-950'
-                }`}
+              className={`transition-all cursor-pointer relative ${
+                isSidebarCollapsed
+                  ? `w-11 h-11 rounded-2xl flex items-center justify-center ${
+                      activeTab === 'MONITORING'
+                        ? 'bg-white text-[#00AEEF] shadow-md'
+                        : 'text-white/85 hover:bg-white/15 hover:text-white'
+                    }`
+                  : `w-full p-3 rounded-2xl border-2 text-left flex items-center justify-between gap-2.5 ${
+                      activeTab === 'MONITORING'
+                        ? 'bg-[#00AEEF] border-[#00AEEF] text-white shadow-sm'
+                        : 'bg-slate-50/80 hover:bg-slate-100 border-slate-200/80 text-slate-800'
+                    }`
+              }`}
             >
               {isSidebarCollapsed ? (
                 <>
                   <svg
-                    className="w-4 h-4 stroke-slate-950"
+                    className="w-5 h-5 stroke-current"
                     viewBox="0 0 24 24"
                     fill="none"
-                    strokeWidth="2.5"
+                    strokeWidth="2.2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   >
@@ -550,20 +679,26 @@ export default function MonitoringAdminPage() {
                     <path d="M6 20v-6" />
                   </svg>
                   {pesertaList.length > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 bg-slate-950 text-white text-[9px] font-black flex items-center justify-center rounded-full border border-white">
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-4.5 px-1 bg-slate-900 text-white text-[9px] font-extrabold flex items-center justify-center rounded-full border border-white">
                       {pesertaList.length}
                     </span>
                   )}
                 </>
               ) : (
                 <>
-                  <div className="min-w-0 flex items-center gap-2.5">
-                    <span className="w-7 h-7 bg-white border-2 border-slate-950 flex items-center justify-center shrink-0">
+                  <div className="min-w-0 flex items-center gap-3">
+                    <span
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                        activeTab === 'MONITORING'
+                          ? 'bg-white/20 text-white'
+                          : 'bg-[#00AEEF]/12 text-[#0284C7]'
+                      }`}
+                    >
                       <svg
-                        className="w-4 h-4 stroke-slate-950"
+                        className="w-4 h-4 stroke-current"
                         viewBox="0 0 24 24"
                         fill="none"
-                        strokeWidth="2.5"
+                        strokeWidth="2.2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       >
@@ -573,15 +708,25 @@ export default function MonitoringAdminPage() {
                       </svg>
                     </span>
                     <div className="min-w-0">
-                      <p className="font-black text-xs uppercase leading-tight truncate">
+                      <p className="font-extrabold text-xs uppercase leading-tight truncate">
                         Monitoring Ujian
                       </p>
-                      <p className="text-[10px] font-bold text-slate-700 mt-0.5 truncate">
+                      <p
+                        className={`text-[10px] font-medium mt-0.5 truncate ${
+                          activeTab === 'MONITORING' ? 'text-white/85' : 'text-slate-500'
+                        }`}
+                      >
                         Pantau waktu &amp; alarm
                       </p>
                     </div>
                   </div>
-                  <span className="bg-white border-2 border-slate-950 px-1.5 py-0.5 text-[11px] font-black shrink-0">
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-extrabold shrink-0 ${
+                      activeTab === 'MONITORING'
+                        ? 'bg-white text-[#0284C7]'
+                        : 'bg-slate-200/80 text-slate-700'
+                    }`}
+                  >
                     {pesertaList.length}
                   </span>
                 </>
@@ -593,21 +738,27 @@ export default function MonitoringAdminPage() {
               type="button"
               onClick={() => setActiveTab('APPROVE_KOMPETENSI')}
               title={`Approve Kompetensi (${waitingKompetensiCount} Menunggu)`}
-              className={`border-2 border-slate-950 transition-all cursor-pointer relative ${isSidebarCollapsed
-                ? 'w-9 h-9 flex items-center justify-center'
-                : 'w-full p-3 text-left flex items-center justify-between gap-2'
-                } ${activeTab === 'APPROVE_KOMPETENSI'
-                  ? 'bg-[#8CC63F] text-slate-950 shadow-[2px_2px_0px_0px_#0f172a]'
-                  : 'bg-[#FFFDF7] hover:bg-slate-100 text-slate-950'
-                }`}
+              className={`transition-all cursor-pointer relative ${
+                isSidebarCollapsed
+                  ? `w-11 h-11 rounded-2xl flex items-center justify-center ${
+                      activeTab === 'APPROVE_KOMPETENSI'
+                        ? 'bg-white text-[#00AEEF] shadow-md'
+                        : 'text-white/85 hover:bg-white/15 hover:text-white'
+                    }`
+                  : `w-full p-3 rounded-2xl border-2 text-left flex items-center justify-between gap-2.5 ${
+                      activeTab === 'APPROVE_KOMPETENSI'
+                        ? 'bg-[#8CC63F] border-[#8CC63F] text-slate-950 shadow-sm'
+                        : 'bg-slate-50/80 hover:bg-slate-100 border-slate-200/80 text-slate-800'
+                    }`
+              }`}
             >
               {isSidebarCollapsed ? (
                 <>
                   <svg
-                    className="w-4 h-4 stroke-slate-950"
+                    className="w-5 h-5 stroke-current"
                     viewBox="0 0 24 24"
                     fill="none"
-                    strokeWidth="2.5"
+                    strokeWidth="2.2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   >
@@ -616,20 +767,26 @@ export default function MonitoringAdminPage() {
                     <path d="M12 17v4" />
                   </svg>
                   {waitingKompetensiCount > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 bg-[#F7941D] text-slate-950 text-[9px] font-black flex items-center justify-center rounded-full border border-slate-950">
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-4.5 px-1 bg-[#8CC63F] text-slate-950 text-[9px] font-extrabold flex items-center justify-center rounded-full border border-white">
                       {waitingKompetensiCount}
                     </span>
                   )}
                 </>
               ) : (
                 <>
-                  <div className="min-w-0 flex items-center gap-2.5">
-                    <span className="w-7 h-7 bg-white border-2 border-slate-950 flex items-center justify-center shrink-0">
+                  <div className="min-w-0 flex items-center gap-3">
+                    <span
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                        activeTab === 'APPROVE_KOMPETENSI'
+                          ? 'bg-slate-950/10 text-slate-950'
+                          : 'bg-[#8CC63F]/20 text-[#3F6212]'
+                      }`}
+                    >
                       <svg
-                        className="w-4 h-4 stroke-slate-950"
+                        className="w-4 h-4 stroke-current"
                         viewBox="0 0 24 24"
                         fill="none"
-                        strokeWidth="2.5"
+                        strokeWidth="2.2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       >
@@ -639,19 +796,24 @@ export default function MonitoringAdminPage() {
                       </svg>
                     </span>
                     <div className="min-w-0">
-                      <p className="font-black text-xs uppercase leading-tight truncate">
+                      <p className="font-extrabold text-xs uppercase leading-tight truncate">
                         Approve Kompetensi
                       </p>
-                      <p className="text-[10px] font-bold text-slate-700 mt-0.5 truncate">
+                      <p
+                        className={`text-[10px] font-medium mt-0.5 truncate ${
+                          activeTab === 'APPROVE_KOMPETENSI' ? 'text-slate-800' : 'text-slate-500'
+                        }`}
+                      >
                         Izinkan akses mulai ujian
                       </p>
                     </div>
                   </div>
                   <span
-                    className={`border-2 border-slate-950 px-1.5 py-0.5 text-[11px] font-black shrink-0 ${waitingKompetensiCount > 0
-                      ? 'bg-[#F7941D] text-slate-950'
-                      : 'bg-white text-slate-950'
-                      }`}
+                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-extrabold shrink-0 ${
+                      waitingKompetensiCount > 0
+                        ? 'bg-[#F7941D] text-slate-950'
+                        : 'bg-white/80 text-slate-700'
+                    }`}
                   >
                     {waitingKompetensiCount}
                   </span>
@@ -664,21 +826,27 @@ export default function MonitoringAdminPage() {
               type="button"
               onClick={() => setActiveTab('APPROVE_WAWANCARA')}
               title={`Approve Wawancara (${waitingWawancaraCount} Belum Wawancara)`}
-              className={`border-2 border-slate-950 transition-all cursor-pointer relative ${isSidebarCollapsed
-                ? 'w-9 h-9 flex items-center justify-center'
-                : 'w-full p-3 text-left flex items-center justify-between gap-2'
-                } ${activeTab === 'APPROVE_WAWANCARA'
-                  ? 'bg-[#F7941D] text-slate-950 shadow-[2px_2px_0px_0px_#0f172a]'
-                  : 'bg-[#FFFDF7] hover:bg-slate-100 text-slate-950'
-                }`}
+              className={`transition-all cursor-pointer relative ${
+                isSidebarCollapsed
+                  ? `w-11 h-11 rounded-2xl flex items-center justify-center ${
+                      activeTab === 'APPROVE_WAWANCARA'
+                        ? 'bg-white text-[#00AEEF] shadow-md'
+                        : 'text-white/85 hover:bg-white/15 hover:text-white'
+                    }`
+                  : `w-full p-3 rounded-2xl border-2 text-left flex items-center justify-between gap-2.5 ${
+                      activeTab === 'APPROVE_WAWANCARA'
+                        ? 'bg-[#F7941D] border-[#F7941D] text-slate-950 shadow-sm'
+                        : 'bg-slate-50/80 hover:bg-slate-100 border-slate-200/80 text-slate-800'
+                    }`
+              }`}
             >
               {isSidebarCollapsed ? (
                 <>
                   <svg
-                    className="w-4 h-4 stroke-slate-950"
+                    className="w-5 h-5 stroke-current"
                     viewBox="0 0 24 24"
                     fill="none"
-                    strokeWidth="2.5"
+                    strokeWidth="2.2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   >
@@ -687,20 +855,26 @@ export default function MonitoringAdminPage() {
                     <line x1="12" x2="12" y1="19" y2="22" />
                   </svg>
                   {waitingWawancaraCount > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 bg-[#00AEEF] text-slate-950 text-[9px] font-black flex items-center justify-center rounded-full border border-slate-950">
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-4.5 px-1 bg-[#F7941D] text-slate-950 text-[9px] font-extrabold flex items-center justify-center rounded-full border border-white">
                       {waitingWawancaraCount}
                     </span>
                   )}
                 </>
               ) : (
                 <>
-                  <div className="min-w-0 flex items-center gap-2.5">
-                    <span className="w-7 h-7 bg-white border-2 border-slate-950 flex items-center justify-center shrink-0">
+                  <div className="min-w-0 flex items-center gap-3">
+                    <span
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                        activeTab === 'APPROVE_WAWANCARA'
+                          ? 'bg-slate-950/10 text-slate-950'
+                          : 'bg-[#F7941D]/15 text-[#D97706]'
+                      }`}
+                    >
                       <svg
-                        className="w-4 h-4 stroke-slate-950"
+                        className="w-4 h-4 stroke-current"
                         viewBox="0 0 24 24"
                         fill="none"
-                        strokeWidth="2.5"
+                        strokeWidth="2.2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       >
@@ -710,19 +884,24 @@ export default function MonitoringAdminPage() {
                       </svg>
                     </span>
                     <div className="min-w-0">
-                      <p className="font-black text-xs uppercase leading-tight truncate">
+                      <p className="font-extrabold text-xs uppercase leading-tight truncate">
                         Approve Wawancara
                       </p>
-                      <p className="text-[10px] font-bold text-slate-700 mt-0.5 truncate">
+                      <p
+                        className={`text-[10px] font-medium mt-0.5 truncate ${
+                          activeTab === 'APPROVE_WAWANCARA' ? 'text-slate-800' : 'text-slate-500'
+                        }`}
+                      >
                         Verifikasi selesai wawancara
                       </p>
                     </div>
                   </div>
                   <span
-                    className={`border-2 border-slate-950 px-1.5 py-0.5 text-[11px] font-black shrink-0 ${waitingWawancaraCount > 0
-                      ? 'bg-[#00AEEF] text-slate-950'
-                      : 'bg-white text-slate-950'
-                      }`}
+                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-extrabold shrink-0 ${
+                      waitingWawancaraCount > 0
+                        ? 'bg-[#00AEEF] text-white'
+                        : 'bg-white/80 text-slate-700'
+                    }`}
                   >
                     {waitingWawancaraCount}
                   </span>
@@ -735,21 +914,27 @@ export default function MonitoringAdminPage() {
               type="button"
               onClick={() => setActiveTab('APPROVE_RESET_AKUN')}
               title={`Permohonan Ganti Akun (${resetRequests.length} Permohonan)`}
-              className={`border-2 border-slate-950 transition-all cursor-pointer relative ${isSidebarCollapsed
-                ? 'w-9 h-9 flex items-center justify-center'
-                : 'w-full p-3 text-left flex items-center justify-between gap-2'
-                } ${activeTab === 'APPROVE_RESET_AKUN'
-                  ? 'bg-[#F7941D] text-slate-950 shadow-[2px_2px_0px_0px_#0f172a]'
-                  : 'bg-[#FFFDF7] hover:bg-slate-100 text-slate-950'
-                }`}
+              className={`transition-all cursor-pointer relative ${
+                isSidebarCollapsed
+                  ? `w-11 h-11 rounded-2xl flex items-center justify-center ${
+                      activeTab === 'APPROVE_RESET_AKUN'
+                        ? 'bg-white text-[#00AEEF] shadow-md'
+                        : 'text-white/85 hover:bg-white/15 hover:text-white'
+                    }`
+                  : `w-full p-3 rounded-2xl border-2 text-left flex items-center justify-between gap-2.5 ${
+                      activeTab === 'APPROVE_RESET_AKUN'
+                        ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
+                        : 'bg-slate-50/80 hover:bg-slate-100 border-slate-200/80 text-slate-800'
+                    }`
+              }`}
             >
               {isSidebarCollapsed ? (
                 <>
                   <svg
-                    className="w-4 h-4 stroke-slate-950"
+                    className="w-5 h-5 stroke-current"
                     viewBox="0 0 24 24"
                     fill="none"
-                    strokeWidth="2.5"
+                    strokeWidth="2.2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   >
@@ -758,20 +943,26 @@ export default function MonitoringAdminPage() {
                     <path d="M22 11l-3-3m0 0l-3 3m3-3v6" />
                   </svg>
                   {resetRequests.length > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 bg-red-600 text-white text-[9px] font-black flex items-center justify-center rounded-full border border-white animate-pulse">
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-4.5 px-1 bg-red-600 text-white text-[9px] font-extrabold flex items-center justify-center rounded-full border border-white animate-pulse">
                       {resetRequests.length}
                     </span>
                   )}
                 </>
               ) : (
                 <>
-                  <div className="min-w-0 flex items-center gap-2.5">
-                    <span className="w-7 h-7 bg-white border-2 border-slate-950 flex items-center justify-center shrink-0">
+                  <div className="min-w-0 flex items-center gap-3">
+                    <span
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                        activeTab === 'APPROVE_RESET_AKUN'
+                          ? 'bg-white/15 text-white'
+                          : 'bg-red-50 text-red-600'
+                      }`}
+                    >
                       <svg
-                        className="w-4 h-4 stroke-slate-950"
+                        className="w-4 h-4 stroke-current"
                         viewBox="0 0 24 24"
                         fill="none"
-                        strokeWidth="2.5"
+                        strokeWidth="2.2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       >
@@ -781,19 +972,24 @@ export default function MonitoringAdminPage() {
                       </svg>
                     </span>
                     <div className="min-w-0">
-                      <p className="font-black text-xs uppercase leading-tight truncate">
+                      <p className="font-extrabold text-xs uppercase leading-tight truncate">
                         Izin Ganti Akun
                       </p>
-                      <p className="text-[10px] font-bold text-slate-700 mt-0.5 truncate">
+                      <p
+                        className={`text-[10px] font-medium mt-0.5 truncate ${
+                          activeTab === 'APPROVE_RESET_AKUN' ? 'text-slate-300' : 'text-slate-500'
+                        }`}
+                      >
                         Setujui / tolak reset peserta
                       </p>
                     </div>
                   </div>
                   <span
-                    className={`border-2 border-slate-950 px-1.5 py-0.5 text-[11px] font-black shrink-0 ${resetRequests.length > 0
-                      ? 'bg-red-500 text-white animate-pulse'
-                      : 'bg-white text-slate-950'
-                      }`}
+                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-extrabold shrink-0 ${
+                      resetRequests.length > 0
+                        ? 'bg-red-600 text-white animate-pulse'
+                        : 'bg-slate-200/80 text-slate-700'
+                    }`}
                   >
                     {resetRequests.length}
                   </span>
@@ -804,13 +1000,17 @@ export default function MonitoringAdminPage() {
 
           {/* Info Singkat Alur di Bawah Sidebar (Hanya tampil saat tidak di-collapse) */}
           {!isSidebarCollapsed && (
-            <div className="p-3 bg-[#FFF5E6] border-t-3 border-slate-950 text-[10px] font-bold text-slate-800 space-y-1 leading-snug">
-              <p className="font-black uppercase text-slate-950">📌 Catatan:</p>
+            <div className="mx-3.5 mb-5 p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200/80 text-[11px] font-medium text-slate-600 space-y-1.5 leading-snug">
+              <p className="font-extrabold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-[#F7941D]" />
+                Catatan Sistem
+              </p>
               <p>
                 • Kolom Ujian &amp; Wawancara otomatis kosong saat peserta baru isi Daftar Hadir.
               </p>
               <p>
-                • Timer 60 menit jalan saat peserta klik <strong>Mulai Ujian</strong>.
+                • Timer 60 menit berjalan saat peserta klik{' '}
+                <strong className="font-bold text-slate-800">Mulai Ujian</strong>.
               </p>
             </div>
           )}
@@ -819,21 +1019,24 @@ export default function MonitoringAdminPage() {
         {/* ================================================================= */}
         {/* AREA KONTEN UTAMA (OTOMATIS MELEBAR SAAT SIDEBAR DI-HIDE)         */}
         {/* ================================================================= */}
-        <main className="flex-1 min-w-0 w-full space-y-6">
+        <main className="flex-1 min-w-0 w-full p-4 md:p-6 lg:p-8 space-y-5">
           {/* BAR FILTER & PENCARIAN */}
-          <div className="bg-white border-4 border-slate-950 p-4 shadow-[6px_6px_0px_0px_#0f172a] flex flex-wrap items-center justify-between gap-4">
+          <div className="bg-white rounded-3xl border-2 border-slate-200/90 p-4 md:p-5 shadow-sm flex flex-wrap items-center justify-between gap-4">
             {/* Filter Posisi */}
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-black uppercase text-slate-950 mr-1">Posisi:</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 mr-1">
+                Posisi:
+              </span>
               {(['SEMUA', ...POSISI_OPTIONS] as const).map((pos) => (
                 <button
                   key={pos}
                   type="button"
                   onClick={() => setFilterPosisi(pos)}
-                  className={`px-3 py-1.5 border-2 border-slate-950 text-xs font-black uppercase cursor-pointer transition ${filterPosisi === pos
-                    ? 'bg-slate-950 text-white shadow-[2px_2px_0px_0px_#00AEEF]'
-                    : 'bg-[#FFFDF7] text-slate-950 hover:bg-slate-200'
-                    }`}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer transition-all ${
+                    filterPosisi === pos
+                      ? 'bg-[#00AEEF] text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200/80'
+                  }`}
                 >
                   {pos}
                 </button>
@@ -846,7 +1049,7 @@ export default function MonitoringAdminPage() {
                 <select
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value as any)}
-                  className="px-3 py-2 bg-[#FFFDF7] border-2 border-slate-950 text-xs font-black uppercase text-slate-950 cursor-pointer"
+                  className="px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100 rounded-xl border-2 border-slate-200 text-xs font-bold uppercase tracking-wider text-slate-800 cursor-pointer focus:outline-none focus:border-[#00AEEF]"
                 >
                   <option value="SEMUA">Semua Status</option>
                   <option value="AKTIF">Sedang Mengerjakan</option>
@@ -854,68 +1057,87 @@ export default function MonitoringAdminPage() {
                 </select>
               )}
 
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari nama peserta..."
-                className="px-3.5 py-2 bg-[#FFFDF7] border-2 border-slate-950 text-xs font-bold text-slate-950 placeholder:text-slate-400 focus:outline-none focus:bg-[#E6F7FF] w-56"
-              />
+              <div className="relative">
+                <svg
+                  className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.3-4.3" />
+                </svg>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Cari nama peserta..."
+                  className="pl-9 pr-4 py-2.5 bg-slate-50 focus:bg-white rounded-xl border-2 border-slate-200 focus:border-[#00AEEF] focus:ring-3 focus:ring-[#00AEEF]/15 text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none w-56 md:w-64 transition-all"
+                />
+              </div>
             </div>
           </div>
 
           {errorMessage && (
-            <div className="bg-red-500 text-white border-4 border-slate-950 p-4 shadow-[6px_6px_0px_0px_#0f172a] font-black text-sm">
-              ⚠️ {errorMessage}
+            <div className="bg-red-50 border-2 border-red-200 text-red-700 rounded-2xl p-4 font-bold text-xs md:text-sm flex items-center gap-3">
+              <span className="w-7 h-7 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0">
+                !
+              </span>
+              <span>{errorMessage}</span>
             </div>
           )}
 
           {/* BANNER ALARM PELANGGARAN AKTIF (SELALU TAMPIL DI ATAS AGAR ADMIN LANGSUNG TAHU) */}
           {activeAlerts.length > 0 && (
-            <div className="bg-red-500 border-4 border-slate-950 p-4 md:p-5 shadow-[8px_8px_0px_0px_#0f172a] space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b-3 border-slate-950 pb-3">
-                <div className="flex items-center gap-2.5">
-                  <span className="bg-[#F7941D] text-slate-950 border-2 border-slate-950 px-2.5 py-1 text-xs font-black uppercase animate-bounce">
-                    🚨 ALARM BERBUNYI
+            <div className="bg-red-600 rounded-3xl border-2 border-red-700 p-5 shadow-lg space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-red-500/60 pb-3.5">
+                <div className="flex items-center gap-3">
+                  <span className="bg-[#F7941D] text-slate-950 px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider animate-bounce shadow-xs">
+                    Alarm Berbunyi
                   </span>
-                  <h2 className="text-white font-black text-sm md:text-base uppercase tracking-wide">
+                  <h2 className="text-white font-extrabold text-sm md:text-base tracking-tight">
                     Terdeteksi Peserta Berpindah Tab ({activeAlerts.length} Peringatan Aktif)
                   </h2>
                 </div>
                 <button
                   type="button"
                   onClick={() => handleDismissAlert('ALL')}
-                  className="bg-slate-950 hover:bg-slate-800 text-white text-xs font-black uppercase px-3.5 py-2 border-2 border-white cursor-pointer transition"
+                  className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-wider px-4 py-2 rounded-xl shadow-xs cursor-pointer transition-all"
                 >
-                  🔇 Matikan Semua Alarm
+                  Matikan Semua Alarm
                 </button>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 {activeAlerts.map((alert) => (
                   <div
                     key={alert.id}
-                    className="bg-[#FFFDF7] border-3 border-slate-950 p-3 flex flex-wrap items-center justify-between gap-3 shadow-[4px_4px_0px_0px_#0f172a]"
+                    className="bg-white rounded-2xl p-3.5 md:p-4 flex flex-wrap items-center justify-between gap-3 shadow-xs"
                   >
                     <div>
-                      <p className="text-sm font-black text-slate-950">
-                        🔊 {alert.namaPeserta}{' '}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-extrabold text-slate-900">
+                          {alert.namaPeserta}
+                        </p>
                         {alert.posisiDilamar && (
-                          <span className="text-xs font-black bg-[#F7941D] px-2 py-0.5 border border-slate-950 ml-1">
+                          <span className="text-[11px] font-bold bg-[#F7941D] text-slate-950 px-2.5 py-0.5 rounded-full">
                             {alert.posisiDilamar}
                           </span>
                         )}
-                      </p>
-                      <p className="text-xs font-bold text-red-600 mt-0.5">
+                      </div>
+                      <p className="text-xs font-semibold text-red-600 mt-0.5">
                         {alert.jenisPelanggaran} • Pukul {alert.waktu}
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={() => handleDismissAlert(alert.id)}
-                      className="bg-[#8CC63F] hover:bg-[#9bd64d] text-slate-950 text-xs font-black uppercase px-3 py-1.5 border-2 border-slate-950 shadow-[2px_2px_0px_0px_#0f172a] cursor-pointer"
+                      className="bg-[#8CC63F] hover:bg-[#7BB335] text-slate-950 text-xs font-bold uppercase tracking-wider px-3.5 py-2 rounded-xl shadow-2xs cursor-pointer transition-all"
                     >
-                      ✓ Matikan Alarm Ini
+                      Matikan Alarm Ini
                     </button>
                   </div>
                 ))}
@@ -924,136 +1146,47 @@ export default function MonitoringAdminPage() {
           )}
 
           {/* =============================================================== */}
-          {/* TAB 4: APPROVE / TOLAK PERMOHONAN GANTI AKUN PESERTA           */}
-          {/* =============================================================== */}
-          {activeTab === 'APPROVE_RESET_AKUN' && (
-            <div className="space-y-4">
-              {/* Header Bar Approve Reset Akun */}
-              <div className="bg-[#FFF5E6] border-4 border-slate-950 p-4 shadow-[6px_6px_0px_0px_#0f172a]">
-                <h2 className="font-black text-slate-950 text-base uppercase">
-                  🔐 Panel Permohonan Izin Ganti Akun / Logout Peserta
-                </h2>
-                <p className="text-xs font-bold text-slate-700 mt-0.5">
-                  Peserta di Lobby mengajukan izin untuk mengganti akun atau kembali ke formulir pendaftaran. Anda dapat <strong>Menyetujui</strong> atau <strong>Menolak</strong> permohonan mereka di bawah ini.
-                </p>
-              </div>
-
-              <div className="bg-white border-4 border-slate-950 shadow-[8px_8px_0px_0px_#0f172a] overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-slate-950 text-white border-b-4 border-slate-950 text-xs font-black uppercase tracking-wider">
-                        <th className="py-3.5 px-4 border-r-2 border-slate-800">No</th>
-                        <th className="py-3.5 px-4 border-r-2 border-slate-800">Nama Peserta</th>
-                        <th className="py-3.5 px-4 border-r-2 border-slate-800">Email</th>
-                        <th className="py-3.5 px-4 border-r-2 border-slate-800">Posisi</th>
-                        <th className="py-3.5 px-4 border-r-2 border-slate-800">Waktu Pengajuan</th>
-                        <th className="py-3.5 px-4 text-center">Tindakan Admin</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y-3 divide-slate-950 text-xs md:text-sm font-bold text-slate-950">
-                      {resetRequests.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} className="py-12 text-center font-black uppercase text-slate-500">
-                            ✓ Tidak ada permohonan ganti akun yang sedang menunggu.
-                          </td>
-                        </tr>
-                      ) : (
-                        resetRequests.map((req, idx) => {
-                          const isRowLoading = actionLoadingRow === 'ALL';
-                          return (
-                            <tr key={req.id} className="bg-[#FFFDF7] hover:bg-slate-100 transition">
-                              <td className="py-4 px-4 border-r-2 border-slate-950 font-black text-center">
-                                {idx + 1}
-                              </td>
-                              <td className="py-4 px-4 border-r-2 border-slate-950 font-black text-sm">
-                                {req.namaPeserta}
-                              </td>
-                              <td className="py-4 px-4 border-r-2 border-slate-950 font-bold text-slate-700">
-                                {req.emailPeserta}
-                              </td>
-                              <td className="py-4 px-4 border-r-2 border-slate-950">
-                                <span
-                                  className={`inline-block px-2.5 py-1 border-2 border-slate-950 text-xs font-black text-slate-950 shadow-[2px_2px_0px_0px_#0f172a] ${getPosisiBadgeColor(
-                                    req.posisiDilamar
-                                  )}`}
-                                >
-                                  {req.posisiDilamar}
-                                </span>
-                              </td>
-                              <td className="py-4 px-4 border-r-2 border-slate-950 text-xs font-mono font-bold text-slate-700">
-                                {req.waktu}
-                              </td>
-                              <td className="py-4 px-4 text-center">
-                                <div className="flex items-center justify-center gap-2">
-                                  <button
-                                    type="button"
-                                    disabled={isRowLoading}
-                                    onClick={() => handleResolveResetRequest(req.id, 'APPROVE')}
-                                    className="bg-[#8CC63F] hover:bg-[#9bd64d] disabled:opacity-50 text-slate-950 font-black uppercase text-xs px-3 py-1.5 border-2 border-slate-950 shadow-[2px_2px_0px_0px_#0f172a] cursor-pointer transition"
-                                  >
-                                    ✓ Setujui Ganti Akun
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={isRowLoading}
-                                    onClick={() => handleResolveResetRequest(req.id, 'REJECT')}
-                                    className="bg-white hover:bg-red-100 disabled:opacity-50 text-red-700 font-black uppercase text-xs px-3 py-1.5 border-2 border-slate-950 shadow-[2px_2px_0px_0px_#0f172a] cursor-pointer transition"
-                                  >
-                                    ✕ Tolak
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* =============================================================== */}
-          {/* TAB 1: MONITORING UJIAN (TAMPILAN ASLI TETAP DIPERTAHANKAN)     */}
+          {/* TAB 1: MONITORING UJIAN                                         */}
           {/* =============================================================== */}
           {activeTab === 'MONITORING' && (
             <>
               {loading ? (
-                <div className="bg-white border-4 border-slate-950 p-12 text-center shadow-[8px_8px_0px_0px_#0f172a]">
-                  <div className="inline-block bg-[#00AEEF] border-3 border-slate-950 px-5 py-2.5 font-black uppercase text-sm shadow-[4px_4px_0px_0px_#0f172a] animate-bounce">
+                <div className="bg-white rounded-3xl border-2 border-slate-200/90 p-12 text-center shadow-sm">
+                  <div className="inline-block bg-[#00AEEF] text-white rounded-xl px-5 py-2.5 font-bold uppercase tracking-wider text-xs shadow-sm animate-pulse">
                     Memuat Data Monitoring Peserta...
                   </div>
                 </div>
               ) : filteredMonitoringPeserta.length === 0 ? (
-                <div className="bg-white border-4 border-slate-950 p-12 text-center shadow-[8px_8px_0px_0px_#0f172a]">
-                  <p className="text-base font-black uppercase text-slate-700">
+                <div className="bg-white rounded-3xl border-2 border-slate-200/90 p-12 text-center shadow-sm">
+                  <p className="text-sm md:text-base font-bold text-slate-500">
                     Belum ada data peserta yang sesuai dengan filter.
                   </p>
                 </div>
               ) : (
-                <div className="bg-white border-4 border-slate-950 shadow-[8px_8px_0px_0px_#0f172a] overflow-hidden">
+                <div className="bg-white rounded-3xl border-2 border-slate-200/90 shadow-md overflow-hidden">
+                  <div className="h-1.5 w-full bg-[#00AEEF]" />
                   <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                       <thead>
-                        <tr className="bg-slate-950 text-white border-b-4 border-slate-950 text-xs font-black uppercase tracking-wider">
-                          <th className="py-3.5 px-4 border-r-2 border-slate-800">No</th>
-                          <th className="py-3.5 px-4 border-r-2 border-slate-800">Nama Peserta</th>
-                          <th className="py-3.5 px-4 border-r-2 border-slate-800">Formasi Posisi</th>
-                          <th className="py-3.5 px-4 border-r-2 border-slate-800">
+                        <tr className="bg-slate-900 text-white text-[11px] font-bold uppercase tracking-wider">
+                          <th className="py-3.5 px-4 border-r border-slate-800 text-center w-14">
+                            No
+                          </th>
+                          <th className="py-3.5 px-4 border-r border-slate-800">Nama Peserta</th>
+                          <th className="py-3.5 px-4 border-r border-slate-800">Formasi Posisi</th>
+                          <th className="py-3.5 px-4 border-r border-slate-800">
                             Waktu Mulai &amp; Batas
                           </th>
-                          <th className="py-3.5 px-4 border-r-2 border-slate-800 text-center">
+                          <th className="py-3.5 px-4 border-r border-slate-800 text-center">
                             Sisa Waktu (Live)
                           </th>
-                          <th className="py-3.5 px-4 border-r-2 border-slate-800">
+                          <th className="py-3.5 px-4 border-r border-slate-800">
                             Progres Soal Selesai
                           </th>
                           <th className="py-3.5 px-4 text-center">Status Ujian</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y-3 divide-slate-950 text-xs md:text-sm font-bold text-slate-950">
+                      <tbody className="divide-y divide-slate-200 text-xs md:text-sm font-medium text-slate-800">
                         {filteredMonitoringPeserta.map((p, index) => {
                           const isDone = p.statusUjian.toUpperCase().includes('SELESAI');
                           const isWorking = p.statusUjian.toUpperCase().includes('SEDANG');
@@ -1068,40 +1201,42 @@ export default function MonitoringAdminPage() {
                           return (
                             <tr
                               key={p.id}
-                              className={`transition ${pesertaActiveAlert
-                                ? 'bg-red-100 hover:bg-red-200/80'
-                                : isDone
-                                  ? 'bg-[#F2FAE9]/50 hover:bg-[#FFFDF7]'
-                                  : 'bg-white hover:bg-[#FFFDF7]'
-                                }`}
+                              className={`transition-colors ${
+                                pesertaActiveAlert
+                                  ? 'bg-red-50 hover:bg-red-100/70'
+                                  : isDone
+                                    ? 'bg-[#F4FCEB]/50 hover:bg-[#F4FCEB]'
+                                    : 'bg-white hover:bg-slate-50/90'
+                              }`}
                             >
-                              <td className="py-4 px-4 border-r-2 border-slate-950 font-black text-center">
+                              <td className="py-4 px-4 border-r border-slate-100 font-bold text-slate-500 text-center">
                                 {index + 1}
                               </td>
 
                               {/* Nama Peserta */}
-                              <td className="py-4 px-4 border-r-2 border-slate-950">
+                              <td className="py-4 px-4 border-r border-slate-100">
                                 <div className="flex flex-wrap items-center gap-2">
-                                  <p className="font-black text-slate-950 text-sm">
+                                  <p className="font-bold text-slate-900 text-sm">
                                     {p.namaPeserta}
                                   </p>
                                   {pesertaActiveAlert && (
-                                    <span className="bg-red-600 text-white border-2 border-slate-950 px-2 py-0.5 text-[10px] font-black uppercase animate-pulse shadow-[2px_2px_0px_0px_#0f172a]">
-                                      🚨 ALARM BERBUNYI!
+                                    <span className="bg-red-600 text-white px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider animate-pulse">
+                                      Alarm Berbunyi!
                                     </span>
                                   )}
                                 </div>
                                 {(p.emailPeserta || p.teleponPeserta) && (
-                                  <p className="text-[11px] font-bold text-slate-500 mt-0.5">
-                                    {p.emailPeserta} {p.teleponPeserta ? `• 📞 ${p.teleponPeserta}` : ''}
+                                  <p className="text-[11px] font-medium text-slate-500 mt-0.5">
+                                    {p.emailPeserta}{' '}
+                                    {p.teleponPeserta ? `• ${p.teleponPeserta}` : ''}
                                   </p>
                                 )}
                               </td>
 
                               {/* Posisi */}
-                              <td className="py-4 px-4 border-r-2 border-slate-950">
+                              <td className="py-4 px-4 border-r border-slate-100">
                                 <span
-                                  className={`inline-block px-2.5 py-1 border-2 border-slate-950 text-xs font-black text-slate-950 shadow-[2px_2px_0px_0px_#0f172a] ${getPosisiBadgeColor(
+                                  className={`inline-block px-3 py-1 rounded-full text-xs font-bold shadow-2xs ${getPosisiBadgeColor(
                                     p.posisiDilamar
                                   )}`}
                                 >
@@ -1110,79 +1245,84 @@ export default function MonitoringAdminPage() {
                               </td>
 
                               {/* Waktu Mulai & Batas */}
-                              <td className="py-4 px-4 border-r-2 border-slate-950 text-xs">
+                              <td className="py-4 px-4 border-r border-slate-100 text-xs">
                                 <p>
-                                  <span className="font-black text-slate-600">Mulai:</span>{' '}
-                                  {p.waktuMulai}
+                                  <span className="font-bold text-slate-500">Mulai:</span>{' '}
+                                  <span className="font-semibold text-slate-800">
+                                    {p.waktuMulai}
+                                  </span>
                                 </p>
                                 <p className="mt-0.5">
-                                  <span className="font-black text-slate-600">Batas:</span>{' '}
-                                  {p.batasSelesai}
+                                  <span className="font-bold text-slate-500">Batas:</span>{' '}
+                                  <span className="font-semibold text-slate-800">
+                                    {p.batasSelesai}
+                                  </span>
                                 </p>
                               </td>
 
                               {/* Sisa Waktu Live */}
-                              <td className="py-4 px-4 border-r-2 border-slate-950 text-center">
+                              <td className="py-4 px-4 border-r border-slate-100 text-center">
                                 {isWorking || isDone ? (
                                   <>
                                     <div
-                                      className={`inline-block px-3 py-1.5 border-2 border-slate-950 font-mono text-base font-black shadow-[3px_3px_0px_0px_#0f172a] ${isDone
-                                        ? 'bg-slate-200 text-slate-800'
-                                        : p.sisaDetik < 300
-                                          ? 'bg-red-500 text-white animate-pulse'
-                                          : 'bg-[#F7941D] text-slate-950'
-                                        }`}
+                                      className={`inline-block px-3.5 py-1.5 rounded-xl font-mono text-sm md:text-base font-extrabold shadow-2xs ${
+                                        isDone
+                                          ? 'bg-slate-100 text-slate-700 border border-slate-200'
+                                          : p.sisaDetik < 300
+                                            ? 'bg-red-600 text-white animate-pulse'
+                                            : 'bg-[#F7941D] text-slate-950'
+                                      }`}
                                     >
                                       {formatTime(p.sisaDetik)}
                                     </div>
                                     {isDone && (
-                                      <span className="block text-[10px] font-black uppercase text-slate-500 mt-1">
+                                      <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-1">
                                         Sisa Saat Kumpul
                                       </span>
                                     )}
                                   </>
                                 ) : (
-                                  <span className="text-xs font-black text-slate-400">
+                                  <span className="text-xs font-bold text-slate-400">
                                     Belum Mulai
                                   </span>
                                 )}
                               </td>
 
-                              {/* Progres Pengerjaan (Berapa / Berapa Soal Selesai) */}
-                              <td className="py-4 px-4 border-r-2 border-slate-950 min-w-[180px]">
+                              {/* Progres Pengerjaan */}
+                              <td className="py-4 px-4 border-r border-slate-100 min-w-[180px]">
                                 {isWorking || isDone ? (
                                   <>
-                                    <div className="flex items-center justify-between text-xs font-black mb-1.5">
-                                      <span className="bg-[#FFFDF7] px-2 py-0.5 border border-slate-950">
+                                    <div className="flex items-center justify-between text-xs font-bold mb-1.5">
+                                      <span className="bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-lg border border-slate-200">
                                         {p.terjawab} / {p.totalSoal} Soal
                                       </span>
-                                      <span>{pct}%</span>
+                                      <span className="text-slate-700 font-extrabold">{pct}%</span>
                                     </div>
-                                    <div className="w-full h-4 bg-slate-200 border-2 border-slate-950 overflow-hidden">
+                                    <div className="w-full h-3 bg-slate-100 rounded-full border border-slate-200 overflow-hidden">
                                       <div
-                                        className="h-full bg-[#8CC63F] transition-all duration-300"
+                                        className="h-full bg-[#8CC63F] rounded-full transition-all duration-300"
                                         style={{ width: `${pct}%` }}
                                       />
                                     </div>
                                   </>
                                 ) : (
-                                  <span className="text-xs font-black text-slate-400">-</span>
+                                  <span className="text-xs font-bold text-slate-400">-</span>
                                 )}
                               </td>
 
                               {/* Status */}
                               <td className="py-4 px-4 text-center">
                                 {isDone ? (
-                                  <span className="inline-block bg-[#8CC63F] border-2 border-slate-950 px-3 py-1 text-xs font-black uppercase text-slate-950 shadow-[2px_2px_0px_0px_#0f172a]">
-                                    ✓ SELESAI
+                                  <span className="inline-block bg-[#8CC63F] text-slate-950 px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider shadow-2xs">
+                                    Selesai
                                   </span>
                                 ) : isWorking ? (
-                                  <span className="inline-block bg-[#00AEEF] border-2 border-slate-950 px-3 py-1 text-xs font-black uppercase text-slate-950 shadow-[2px_2px_0px_0px_#0f172a]">
-                                    ● SEDANG UJIAN
+                                  <span className="inline-block bg-[#00AEEF] text-white px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider shadow-2xs">
+                                    Sedang Ujian
                                   </span>
                                 ) : (
-                                  <span className="inline-block bg-[#FFF5E6] border-2 border-slate-950 px-3 py-1 text-xs font-black uppercase text-slate-700">
-                                    ⏳ BELUM MULAI
+                                  <span className="inline-block bg-slate-100 border border-slate-200 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                    Belum Mulai
                                   </span>
                                 )}
                               </td>
@@ -1203,7 +1343,34 @@ export default function MonitoringAdminPage() {
           {activeTab === 'APPROVE_KOMPETENSI' && (
             <div className="space-y-4">
               {/* Header Bar Approve Kompetensi + Tombol Approve Semua */}
-              <div className="bg-[#8CC63F]/25 border-4 border-slate-950 p-4 shadow-[6px_6px_0px_0px_#0f172a] flex flex-wrap items-center justify-between gap-4">
+              <div className="bg-white rounded-3xl border-2 border-[#8CC63F]/55 p-5 shadow-sm flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-start gap-3.5">
+                  <span className="w-10 h-10 rounded-2xl bg-[#8CC63F] text-slate-950 flex items-center justify-center shrink-0 shadow-xs">
+                    <svg
+                      className="w-5 h-5"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <rect x="2" y="3" width="20" height="14" rx="2" />
+                      <path d="M8 21h8" />
+                      <path d="M12 17v4" />
+                    </svg>
+                  </span>
+                  <div>
+                    <h2 className="font-extrabold text-slate-900 text-sm md:text-base">
+                      Panel Persetujuan (Approve) Akses Tes Seleksi Kompetensi
+                    </h2>
+                    <p className="text-xs font-medium text-slate-600 mt-0.5">
+                      Setujui akses peserta yang sudah berada di ruangan ujian agar tombol{' '}
+                      <strong className="text-slate-900">Mulai Ujian Sekarang</strong> aktif di
+                      layar peserta.
+                    </p>
+                  </div>
+                </div>
 
                 {waitingKompetensiCount > 0 && (
                   <button
@@ -1218,36 +1385,39 @@ export default function MonitoringAdminPage() {
                         }));
                       handleApproveAction('APPROVE_KOMPETENSI', undefined, unapprovedRows);
                     }}
-                    className="bg-[#8CC63F] hover:bg-[#9bd64d] disabled:opacity-50 text-slate-950 text-xs font-black uppercase tracking-wider px-4 py-2.5 border-3 border-slate-950 shadow-[4px_4px_0px_0px_#0f172a] cursor-pointer shrink-0"
+                    className="bg-[#8CC63F] hover:bg-[#7BB335] disabled:opacity-50 text-slate-950 text-xs font-bold uppercase tracking-wider px-4 py-3 rounded-xl shadow-xs hover:shadow cursor-pointer shrink-0 transition-all"
                   >
                     {actionLoadingRow === 'ALL'
                       ? 'Memproses...'
-                      : `✓ Approve Semua (${waitingKompetensiCount} Peserta)`}
+                      : `Approve Semua (${waitingKompetensiCount} Peserta)`}
                   </button>
                 )}
               </div>
 
-              <div className="bg-white border-4 border-slate-950 shadow-[8px_8px_0px_0px_#0f172a] overflow-hidden">
+              <div className="bg-white rounded-3xl border-2 border-slate-200/90 shadow-md overflow-hidden">
+                <div className="h-1.5 w-full bg-[#8CC63F]" />
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-slate-950 text-white border-b-4 border-slate-950 text-xs font-black uppercase tracking-wider">
-                        <th className="py-3.5 px-4 border-r-2 border-slate-800">No</th>
-                        <th className="py-3.5 px-4 border-r-2 border-slate-800">Nama Peserta</th>
-                        <th className="py-3.5 px-4 border-r-2 border-slate-800">Formasi Posisi</th>
-                        <th className="py-3.5 px-4 border-r-2 border-slate-800 text-center">
+                      <tr className="bg-slate-900 text-white text-[11px] font-bold uppercase tracking-wider">
+                        <th className="py-3.5 px-4 border-r border-slate-800 text-center w-14">
+                          No
+                        </th>
+                        <th className="py-3.5 px-4 border-r border-slate-800">Nama Peserta</th>
+                        <th className="py-3.5 px-4 border-r border-slate-800">Formasi Posisi</th>
+                        <th className="py-3.5 px-4 border-r border-slate-800 text-center">
                           Status Wawancara
                         </th>
-                        <th className="py-3.5 px-4 border-r-2 border-slate-800 text-center">
+                        <th className="py-3.5 px-4 border-r border-slate-800 text-center">
                           Status Ujian Kompetensi
                         </th>
                         <th className="py-3.5 px-4 text-center">Aksi Approve Akses</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y-3 divide-slate-950 text-xs md:text-sm font-bold text-slate-950">
+                    <tbody className="divide-y divide-slate-200 text-xs md:text-sm font-medium text-slate-800">
                       {filteredApproveKompetensi.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="py-8 text-center font-black uppercase text-slate-500">
+                          <td colSpan={6} className="py-10 text-center font-bold text-slate-500">
                             Belum ada peserta terdaftar.
                           </td>
                         </tr>
@@ -1260,65 +1430,66 @@ export default function MonitoringAdminPage() {
                           return (
                             <tr
                               key={p.id}
-                              className={
+                              className={`transition-colors ${
                                 !p.kompetensiApproved && !p.statusUjian
-                                  ? 'bg-[#FFF5E6] hover:bg-[#ffedd1]'
-                                  : 'bg-white hover:bg-[#FFFDF7]'
-                              }
+                                  ? 'bg-amber-50/60 hover:bg-amber-50'
+                                  : 'bg-white hover:bg-slate-50/90'
+                              }`}
                             >
-                              <td className="py-4 px-4 border-r-2 border-slate-950 font-black text-center">
+                              <td className="py-4 px-4 border-r border-slate-100 font-bold text-slate-500 text-center">
                                 {idx + 1}
                               </td>
-                              <td className="py-4 px-4 border-r-2 border-slate-950 font-black text-sm">
-                                <p>{p.namaPeserta}</p>
+                              <td className="py-4 px-4 border-r border-slate-100">
+                                <p className="font-bold text-slate-900 text-sm">{p.namaPeserta}</p>
                                 {(p.emailPeserta || p.teleponPeserta) && (
-                                  <p className="text-[11px] font-bold text-slate-500 mt-0.5">
-                                    {p.emailPeserta} {p.teleponPeserta ? `• 📞 ${p.teleponPeserta}` : ''}
+                                  <p className="text-[11px] font-medium text-slate-500 mt-0.5">
+                                    {p.emailPeserta}{' '}
+                                    {p.teleponPeserta ? `• ${p.teleponPeserta}` : ''}
                                   </p>
                                 )}
                               </td>
-                              <td className="py-4 px-4 border-r-2 border-slate-950">
+                              <td className="py-4 px-4 border-r border-slate-100">
                                 <span
-                                  className={`inline-block px-2.5 py-1 border-2 border-slate-950 text-xs font-black text-slate-950 shadow-[2px_2px_0px_0px_#0f172a] ${getPosisiBadgeColor(
+                                  className={`inline-block px-3 py-1 rounded-full text-xs font-bold shadow-2xs ${getPosisiBadgeColor(
                                     p.posisiDilamar
                                   )}`}
                                 >
                                   {p.posisiDilamar}
                                 </span>
                               </td>
-                              <td className="py-4 px-4 border-r-2 border-slate-950 text-center">
+                              <td className="py-4 px-4 border-r border-slate-100 text-center">
                                 {p.wawancaraApproved ? (
-                                  <span className="inline-block bg-[#8CC63F] border-2 border-slate-950 px-2.5 py-0.5 text-[11px] font-black uppercase">
-                                    ✓ SUDAH WAWANCARA
+                                  <span className="inline-block bg-[#8CC63F] text-slate-950 px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider">
+                                    Sudah Wawancara
                                   </span>
                                 ) : (
-                                  <span className="inline-block bg-slate-100 border-2 border-slate-950 px-2.5 py-0.5 text-[11px] font-black uppercase text-slate-600">
-                                    BELUM WAWANCARA
+                                  <span className="inline-block bg-slate-100 border border-slate-200 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                    Belum Wawancara
                                   </span>
                                 )}
                               </td>
-                              <td className="py-4 px-4 border-r-2 border-slate-950 text-center">
+                              <td className="py-4 px-4 border-r border-slate-100 text-center">
                                 {isDone ? (
-                                  <span className="inline-block bg-[#8CC63F] border-2 border-slate-950 px-2.5 py-1 text-xs font-black uppercase">
-                                    ✓ SELESAI UJIAN
+                                  <span className="inline-block bg-[#8CC63F] text-slate-950 px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider">
+                                    Selesai Ujian
                                   </span>
                                 ) : isWorking ? (
-                                  <span className="inline-block bg-[#00AEEF] border-2 border-slate-950 px-2.5 py-1 text-xs font-black uppercase">
-                                    ● SEDANG MENGERJAKAN
+                                  <span className="inline-block bg-[#00AEEF] text-white px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider">
+                                    Sedang Mengerjakan
                                   </span>
                                 ) : p.kompetensiApproved ? (
-                                  <span className="inline-block bg-[#E6F7FF] border-2 border-slate-950 px-2.5 py-1 text-xs font-black uppercase text-slate-950">
-                                    ✓ DISETUJUI (BELUM KLIK MULAI)
+                                  <span className="inline-block bg-[#F0F9FF] border border-[#00AEEF]/40 text-[#0284C7] px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider">
+                                    Disetujui (Belum Klik Mulai)
                                   </span>
                                 ) : (
-                                  <span className="inline-block bg-[#F7941D] border-2 border-slate-950 px-2.5 py-1 text-xs font-black uppercase text-slate-950">
-                                    ⏳ MENUNGGU APPROVE
+                                  <span className="inline-block bg-[#F7941D] text-slate-950 px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider">
+                                    Menunggu Approve
                                   </span>
                                 )}
                               </td>
                               <td className="py-4 px-4 text-center">
                                 {isDone || isWorking ? (
-                                  <span className="text-xs font-black uppercase text-slate-500">
+                                  <span className="text-xs font-bold text-slate-400">
                                     Sesi Ujian Aktif / Selesai
                                   </span>
                                 ) : !p.kompetensiApproved ? (
@@ -1326,16 +1497,16 @@ export default function MonitoringAdminPage() {
                                     type="button"
                                     disabled={isRowLoading}
                                     onClick={() => handleApproveAction('APPROVE_KOMPETENSI', p)}
-                                    className="bg-[#8CC63F] hover:bg-[#9bd64d] disabled:opacity-50 text-slate-950 font-black uppercase text-xs px-3.5 py-2 border-2 border-slate-950 shadow-[3px_3px_0px_0px_#0f172a] cursor-pointer transition"
+                                    className="bg-[#8CC63F] hover:bg-[#7BB335] disabled:opacity-50 text-slate-950 font-bold uppercase tracking-wider text-xs px-4 py-2 rounded-xl shadow-xs cursor-pointer transition-all"
                                   >
-                                    {isRowLoading ? 'Memproses...' : '✓ Approve Akses Ujian'}
+                                    {isRowLoading ? 'Memproses...' : 'Approve Akses Ujian'}
                                   </button>
                                 ) : (
                                   <button
                                     type="button"
                                     disabled={isRowLoading}
                                     onClick={() => handleApproveAction('REVOKE_KOMPETENSI', p)}
-                                    className="bg-white hover:bg-red-100 disabled:opacity-50 text-red-700 font-black uppercase text-xs px-3 py-1.5 border-2 border-slate-950 cursor-pointer transition"
+                                    className="bg-white hover:bg-red-50 disabled:opacity-50 text-red-600 border border-red-200 font-bold uppercase tracking-wider text-xs px-3.5 py-2 rounded-xl cursor-pointer transition-all"
                                   >
                                     {isRowLoading ? '...' : 'Batalkan Approve'}
                                   </button>
@@ -1358,36 +1529,59 @@ export default function MonitoringAdminPage() {
           {activeTab === 'APPROVE_WAWANCARA' && (
             <div className="space-y-4">
               {/* Header Bar Approve Wawancara */}
-              <div className="bg-[#F7941D]/25 border-4 border-slate-950 p-4 shadow-[6px_6px_0px_0px_#0f172a]">
-                <h2 className="font-black text-slate-950 text-base uppercase">
-                  🎤 Panel Approve Kehadiran &amp; Selesai Tes Wawancara
-                </h2>
-                <p className="text-xs font-bold text-slate-700 mt-0.5">
-                  Klik <strong>Approve Selesai Wawancara</strong> bagi peserta yang telah mengikuti wawancara. Sistem akan mengisi kolom <strong>Status Wawancara</strong> di Google Sheets dan otomatis mengarahkan peserta ke Tes Seleksi Kompetensi (jika belum).
-                </p>
+              <div className="bg-white rounded-3xl border-2 border-[#F7941D]/55 p-5 shadow-sm flex items-start gap-3.5">
+                <span className="w-10 h-10 rounded-2xl bg-[#F7941D] text-slate-950 flex items-center justify-center shrink-0 shadow-xs">
+                  <svg
+                    className="w-5 h-5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                    <line x1="12" x2="12" y1="19" y2="22" />
+                  </svg>
+                </span>
+                <div>
+                  <h2 className="font-extrabold text-slate-900 text-sm md:text-base">
+                    Panel Approve Kehadiran &amp; Selesai Tes Wawancara
+                  </h2>
+                  <p className="text-xs font-medium text-slate-600 mt-0.5 leading-relaxed">
+                    Klik <strong className="text-slate-900">Approve Selesai Wawancara</strong> bagi
+                    peserta yang telah mengikuti wawancara. Sistem akan mengisi kolom{' '}
+                    <strong className="text-slate-900">Status Wawancara</strong> di Google Sheets
+                    dan otomatis mengarahkan peserta ke Tes Seleksi Kompetensi (jika belum).
+                  </p>
+                </div>
               </div>
 
-              <div className="bg-white border-4 border-slate-950 shadow-[8px_8px_0px_0px_#0f172a] overflow-hidden">
+              <div className="bg-white rounded-3xl border-2 border-slate-200/90 shadow-md overflow-hidden">
+                <div className="h-1.5 w-full bg-[#F7941D]" />
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-slate-950 text-white border-b-4 border-slate-950 text-xs font-black uppercase tracking-wider">
-                        <th className="py-3.5 px-4 border-r-2 border-slate-800">No</th>
-                        <th className="py-3.5 px-4 border-r-2 border-slate-800">Nama Peserta</th>
-                        <th className="py-3.5 px-4 border-r-2 border-slate-800">Formasi Posisi</th>
-                        <th className="py-3.5 px-4 border-r-2 border-slate-800 text-center">
+                      <tr className="bg-slate-900 text-white text-[11px] font-bold uppercase tracking-wider">
+                        <th className="py-3.5 px-4 border-r border-slate-800 text-center w-14">
+                          No
+                        </th>
+                        <th className="py-3.5 px-4 border-r border-slate-800">Nama Peserta</th>
+                        <th className="py-3.5 px-4 border-r border-slate-800">Formasi Posisi</th>
+                        <th className="py-3.5 px-4 border-r border-slate-800 text-center">
                           Status Tes Kompetensi
                         </th>
-                        <th className="py-3.5 px-4 border-r-2 border-slate-800 text-center">
+                        <th className="py-3.5 px-4 border-r border-slate-800 text-center">
                           Status Wawancara
                         </th>
                         <th className="py-3.5 px-4 text-center">Aksi Approve Wawancara</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y-3 divide-slate-950 text-xs md:text-sm font-bold text-slate-950">
+                    <tbody className="divide-y divide-slate-200 text-xs md:text-sm font-medium text-slate-800">
                       {filteredApproveWawancara.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="py-8 text-center font-black uppercase text-slate-500">
+                          <td colSpan={6} className="py-10 text-center font-bold text-slate-500">
                             Belum ada peserta terdaftar.
                           </td>
                         </tr>
@@ -1400,55 +1594,56 @@ export default function MonitoringAdminPage() {
                           return (
                             <tr
                               key={p.id}
-                              className={
+                              className={`transition-colors ${
                                 p.wawancaraApproved
-                                  ? 'bg-[#F2FAE9]/60 hover:bg-[#FFFDF7]'
-                                  : 'bg-white hover:bg-[#FFFDF7]'
-                              }
+                                  ? 'bg-[#F4FCEB]/50 hover:bg-[#F4FCEB]'
+                                  : 'bg-white hover:bg-slate-50/90'
+                              }`}
                             >
-                              <td className="py-4 px-4 border-r-2 border-slate-950 font-black text-center">
+                              <td className="py-4 px-4 border-r border-slate-100 font-bold text-slate-500 text-center">
                                 {idx + 1}
                               </td>
-                              <td className="py-4 px-4 border-r-2 border-slate-950 font-black text-sm">
-                                <p>{p.namaPeserta}</p>
+                              <td className="py-4 px-4 border-r border-slate-100">
+                                <p className="font-bold text-slate-900 text-sm">{p.namaPeserta}</p>
                                 {(p.emailPeserta || p.teleponPeserta) && (
-                                  <p className="text-[11px] font-bold text-slate-500 mt-0.5">
-                                    {p.emailPeserta} {p.teleponPeserta ? `• 📞 ${p.teleponPeserta}` : ''}
+                                  <p className="text-[11px] font-medium text-slate-500 mt-0.5">
+                                    {p.emailPeserta}{' '}
+                                    {p.teleponPeserta ? `• ${p.teleponPeserta}` : ''}
                                   </p>
                                 )}
                               </td>
-                              <td className="py-4 px-4 border-r-2 border-slate-950">
+                              <td className="py-4 px-4 border-r border-slate-100">
                                 <span
-                                  className={`inline-block px-2.5 py-1 border-2 border-slate-950 text-xs font-black text-slate-950 shadow-[2px_2px_0px_0px_#0f172a] ${getPosisiBadgeColor(
+                                  className={`inline-block px-3 py-1 rounded-full text-xs font-bold shadow-2xs ${getPosisiBadgeColor(
                                     p.posisiDilamar
                                   )}`}
                                 >
                                   {p.posisiDilamar}
                                 </span>
                               </td>
-                              <td className="py-4 px-4 border-r-2 border-slate-950 text-center">
+                              <td className="py-4 px-4 border-r border-slate-100 text-center">
                                 {isKompetensiDone ? (
-                                  <span className="inline-block bg-[#8CC63F] border-2 border-slate-950 px-2.5 py-0.5 text-[11px] font-black uppercase">
-                                    ✓ SUDAH KOMPETENSI
+                                  <span className="inline-block bg-[#8CC63F] text-slate-950 px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider">
+                                    Sudah Kompetensi
                                   </span>
                                 ) : isKompetensiWorking ? (
-                                  <span className="inline-block bg-[#00AEEF] border-2 border-slate-950 px-2.5 py-0.5 text-[11px] font-black uppercase">
-                                    ● SEDANG UJIAN
+                                  <span className="inline-block bg-[#00AEEF] text-white px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider">
+                                    Sedang Ujian
                                   </span>
                                 ) : (
-                                  <span className="inline-block bg-slate-100 border-2 border-slate-950 px-2.5 py-0.5 text-[11px] font-black uppercase text-slate-600">
-                                    BELUM KOMPETENSI
+                                  <span className="inline-block bg-slate-100 border border-slate-200 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                    Belum Kompetensi
                                   </span>
                                 )}
                               </td>
-                              <td className="py-4 px-4 border-r-2 border-slate-950 text-center">
+                              <td className="py-4 px-4 border-r border-slate-100 text-center">
                                 {p.wawancaraApproved ? (
-                                  <span className="inline-block bg-[#8CC63F] border-2 border-slate-950 px-3 py-1 text-xs font-black uppercase text-slate-950 shadow-[2px_2px_0px_0px_#0f172a]">
-                                    ✓ {p.statusWawancara || 'SUDAH WAWANCARA'}
+                                  <span className="inline-block bg-[#8CC63F] text-slate-950 px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider">
+                                    {p.statusWawancara || 'Sudah Wawancara'}
                                   </span>
                                 ) : (
-                                  <span className="inline-block bg-[#FFF5E6] border-2 border-slate-950 px-3 py-1 text-xs font-black uppercase text-slate-600">
-                                    BELUM WAWANCARA
+                                  <span className="inline-block bg-[#F7941D] text-slate-950 px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider">
+                                    Belum Wawancara
                                   </span>
                                 )}
                               </td>
@@ -1458,7 +1653,7 @@ export default function MonitoringAdminPage() {
                                     type="button"
                                     disabled={isRowLoading}
                                     onClick={() => handleApproveAction('APPROVE_WAWANCARA', p)}
-                                    className="bg-[#8CC63F] hover:bg-[#9bd64d] disabled:opacity-50 text-slate-950 font-black uppercase text-xs px-3.5 py-2 border-2 border-slate-950 shadow-[3px_3px_0px_0px_#0f172a] cursor-pointer transition"
+                                    className="bg-[#8CC63F] hover:bg-[#7BB335] disabled:opacity-50 text-slate-950 font-bold uppercase tracking-wider text-xs px-4 py-2 rounded-xl shadow-xs cursor-pointer transition-all"
                                   >
                                     {isRowLoading ? 'Menyimpan...' : 'Approve Selesai Wawancara'}
                                   </button>
@@ -1467,7 +1662,7 @@ export default function MonitoringAdminPage() {
                                     type="button"
                                     disabled={isRowLoading}
                                     onClick={() => handleApproveAction('REVOKE_WAWANCARA', p)}
-                                    className="bg-white hover:bg-red-100 disabled:opacity-50 text-red-700 font-black uppercase text-xs px-3 py-1.5 border-2 border-slate-950 cursor-pointer transition"
+                                    className="bg-white hover:bg-red-50 disabled:opacity-50 text-red-600 border border-red-200 font-bold uppercase tracking-wider text-xs px-3.5 py-2 rounded-xl cursor-pointer transition-all"
                                   >
                                     {isRowLoading ? '...' : 'Batalkan Approve'}
                                   </button>
@@ -1490,59 +1685,85 @@ export default function MonitoringAdminPage() {
           {activeTab === 'APPROVE_RESET_AKUN' && (
             <div className="space-y-4">
               {/* Header Bar Approve Reset Akun */}
-              <div className="bg-[#FFF5E6] border-4 border-slate-950 p-4 shadow-[6px_6px_0px_0px_#0f172a]">
-                <h2 className="font-black text-slate-950 text-base uppercase">
-                  🔐 Panel Permohonan Izin Ganti Akun / Logout Peserta
-                </h2>
-                <p className="text-xs font-bold text-slate-700 mt-0.5">
-                  Peserta di Lobby mengajukan izin untuk mengganti akun atau kembali ke formulir pendaftaran. Anda dapat <strong>Menyetujui</strong> atau <strong>Menolak</strong> permohonan mereka di bawah ini.
-                </p>
+              <div className="bg-white rounded-3xl border-2 border-slate-200/90 p-5 shadow-sm flex items-start gap-3.5">
+                <span className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <svg
+                    className="w-5 h-5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M22 11l-3-3m0 0l-3 3m3-3v6" />
+                  </svg>
+                </span>
+                <div>
+                  <h2 className="font-extrabold text-slate-900 text-sm md:text-base">
+                    Panel Permohonan Izin Ganti Akun / Logout Peserta
+                  </h2>
+                  <p className="text-xs font-medium text-slate-600 mt-0.5 leading-relaxed">
+                    Peserta di Lobby mengajukan izin untuk mengganti akun atau kembali ke formulir
+                    pendaftaran. Anda dapat <strong className="text-slate-900">Menyetujui</strong>{' '}
+                    atau <strong className="text-slate-900">Menolak</strong> permohonan mereka di
+                    bawah ini.
+                  </p>
+                </div>
               </div>
 
-              <div className="bg-white border-4 border-slate-950 shadow-[8px_8px_0px_0px_#0f172a] overflow-hidden">
+              <div className="bg-white rounded-3xl border-2 border-slate-200/90 shadow-md overflow-hidden">
+                <div className="h-1.5 w-full bg-slate-900" />
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-slate-950 text-white border-b-4 border-slate-950 text-xs font-black uppercase tracking-wider">
-                        <th className="py-3.5 px-4 border-r-2 border-slate-800">No</th>
-                        <th className="py-3.5 px-4 border-r-2 border-slate-800">Nama Peserta</th>
-                        <th className="py-3.5 px-4 border-r-2 border-slate-800">Email</th>
-                        <th className="py-3.5 px-4 border-r-2 border-slate-800">Posisi</th>
-                        <th className="py-3.5 px-4 border-r-2 border-slate-800">Waktu Pengajuan</th>
+                      <tr className="bg-slate-900 text-white text-[11px] font-bold uppercase tracking-wider">
+                        <th className="py-3.5 px-4 border-r border-slate-800 text-center w-14">
+                          No
+                        </th>
+                        <th className="py-3.5 px-4 border-r border-slate-800">Nama Peserta</th>
+                        <th className="py-3.5 px-4 border-r border-slate-800">Email</th>
+                        <th className="py-3.5 px-4 border-r border-slate-800">Posisi</th>
+                        <th className="py-3.5 px-4 border-r border-slate-800">Waktu Pengajuan</th>
                         <th className="py-3.5 px-4 text-center">Tindakan Admin</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y-3 divide-slate-950 text-xs md:text-sm font-bold text-slate-950">
+                    <tbody className="divide-y divide-slate-200 text-xs md:text-sm font-medium text-slate-800">
                       {resetRequests.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="py-12 text-center font-black uppercase text-slate-500">
-                            ✓ Tidak ada permohonan ganti akun yang sedang menunggu.
+                          <td colSpan={6} className="py-12 text-center font-bold text-slate-500">
+                            Tidak ada permohonan ganti akun yang sedang menunggu.
                           </td>
                         </tr>
                       ) : (
                         resetRequests.map((req, idx) => {
                           const isRowLoading = actionLoadingRow === 'ALL';
                           return (
-                            <tr key={req.id} className="bg-[#FFFDF7] hover:bg-slate-100 transition">
-                              <td className="py-4 px-4 border-r-2 border-slate-950 font-black text-center">
+                            <tr
+                              key={req.id}
+                              className="bg-white hover:bg-slate-50/90 transition-colors"
+                            >
+                              <td className="py-4 px-4 border-r border-slate-100 font-bold text-slate-500 text-center">
                                 {idx + 1}
                               </td>
-                              <td className="py-4 px-4 border-r-2 border-slate-950 font-black text-sm">
+                              <td className="py-4 px-4 border-r border-slate-100 font-bold text-slate-900 text-sm">
                                 {req.namaPeserta}
                               </td>
-                              <td className="py-4 px-4 border-r-2 border-slate-950 font-bold text-slate-700">
+                              <td className="py-4 px-4 border-r border-slate-100 font-medium text-slate-600">
                                 {req.emailPeserta}
                               </td>
-                              <td className="py-4 px-4 border-r-2 border-slate-950">
+                              <td className="py-4 px-4 border-r border-slate-100">
                                 <span
-                                  className={`inline-block px-2.5 py-1 border-2 border-slate-950 text-xs font-black text-slate-950 shadow-[2px_2px_0px_0px_#0f172a] ${getPosisiBadgeColor(
+                                  className={`inline-block px-3 py-1 rounded-full text-xs font-bold shadow-2xs ${getPosisiBadgeColor(
                                     req.posisiDilamar
                                   )}`}
                                 >
                                   {req.posisiDilamar}
                                 </span>
                               </td>
-                              <td className="py-4 px-4 border-r-2 border-slate-950 text-xs font-mono font-bold text-slate-700">
+                              <td className="py-4 px-4 border-r border-slate-100 text-xs font-mono font-semibold text-slate-600">
                                 {req.waktu}
                               </td>
                               <td className="py-4 px-4 text-center">
@@ -1551,17 +1772,17 @@ export default function MonitoringAdminPage() {
                                     type="button"
                                     disabled={isRowLoading}
                                     onClick={() => handleResolveResetRequest(req.id, 'APPROVE')}
-                                    className="bg-[#8CC63F] hover:bg-[#9bd64d] disabled:opacity-50 text-slate-950 font-black uppercase text-xs px-3 py-1.5 border-2 border-slate-950 shadow-[2px_2px_0px_0px_#0f172a] cursor-pointer transition"
+                                    className="bg-[#8CC63F] hover:bg-[#7BB335] disabled:opacity-50 text-slate-950 font-bold uppercase tracking-wider text-xs px-3.5 py-2 rounded-xl shadow-xs cursor-pointer transition-all"
                                   >
-                                    ✓ Setujui Ganti Akun
+                                    Setujui Ganti Akun
                                   </button>
                                   <button
                                     type="button"
                                     disabled={isRowLoading}
                                     onClick={() => handleResolveResetRequest(req.id, 'REJECT')}
-                                    className="bg-white hover:bg-red-100 disabled:opacity-50 text-red-700 font-black uppercase text-xs px-3 py-1.5 border-2 border-slate-950 shadow-[2px_2px_0px_0px_#0f172a] cursor-pointer transition"
+                                    className="bg-white hover:bg-red-50 disabled:opacity-50 text-red-600 border border-red-200 font-bold uppercase tracking-wider text-xs px-3.5 py-2 rounded-xl cursor-pointer transition-all"
                                   >
-                                    ✕ Tolak
+                                    Tolak
                                   </button>
                                 </div>
                               </td>
@@ -1575,8 +1796,6 @@ export default function MonitoringAdminPage() {
               </div>
             </div>
           )}
-
-
         </main>
       </div>
     </div>

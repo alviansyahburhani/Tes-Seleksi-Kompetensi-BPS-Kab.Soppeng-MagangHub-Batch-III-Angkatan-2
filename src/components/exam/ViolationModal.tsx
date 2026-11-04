@@ -7,36 +7,62 @@ interface ViolationModalProps {
 
 export default function ViolationModal({ violations, onClose }: ViolationModalProps) {
   return (
-    <div className="fixed inset-0 bg-slate-950/75 z-50 flex items-center justify-center p-4">
-      <div className="bg-[#FFFDF7] border-4 border-slate-950 max-w-md w-full shadow-[12px_12px_0px_0px_#ef4444] overflow-hidden">
-        <div className="bg-red-500 border-b-4 border-slate-950 px-6 py-3 flex items-center justify-between">
-          <span className="font-black text-white uppercase tracking-wider text-sm">
-            🚨 Pelanggaran Terdeteksi
+    <div className="fixed inset-0 bg-slate-900/65 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl border border-slate-200 max-w-md w-full shadow-2xl overflow-hidden">
+        {/* Garis Aksen Atas Merah */}
+        <div className="h-2 w-full bg-red-600" />
+
+        {/* Header Modal */}
+        <div className="bg-red-600 px-6 py-4 flex items-center justify-between">
+          <span className="font-bold text-white uppercase tracking-wider text-xs md:text-sm">
+            Pelanggaran Terdeteksi
           </span>
-          <span className="bg-slate-950 text-white text-xs font-black px-2 py-0.5">
-            LOG #{violations}
+          <span className="bg-white text-red-700 text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full">
+            Log #{violations}
           </span>
         </div>
-        <div className="p-6 text-center">
-          <div className="inline-block bg-[#F7941D] border-3 border-slate-950 px-4 py-2 font-black text-2xl text-slate-950 shadow-[4px_4px_0px_0px_#0f172a] mb-4">
-            ⚠️ DILARANG PINDAH TAB!
+
+        {/* Isi Modal */}
+        <div className="p-6 md:p-7 text-center">
+          <div className="w-14 h-14 mx-auto mb-3.5 rounded-2xl bg-red-50 text-red-600 border border-red-200 flex items-center justify-center">
+            <svg
+              className="w-7 h-7"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
           </div>
-          <p className="text-slate-950 font-black text-base mb-2">
-            Anda terdeteksi meninggalkan layar ujian!
-          </p>
-          <p className="text-xs font-bold text-slate-700 mb-6 leading-relaxed">
+
+          <span className="inline-block bg-[#F7941D] text-slate-950 font-extrabold text-xs uppercase tracking-wider px-3.5 py-1 rounded-full mb-2.5">
+            Dilarang Pindah Tab!
+          </span>
+
+          <h3 className="text-lg font-extrabold text-slate-900 mb-2">
+            Anda Terdeteksi Meninggalkan Layar Ujian
+          </h3>
+
+          <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 mb-6 text-xs text-slate-700 leading-relaxed">
             Sistem telah membunyikan alarm dan mencatat aktivitas Anda ke{' '}
-            <code className="bg-red-100 border border-slate-950 px-1 font-black">
+            <code className="bg-white border border-red-200 text-red-700 px-1.5 py-0.5 rounded font-bold">
               Log_Pelanggaran
             </code>
             . Total pelanggaran Anda:{' '}
-            <span className="bg-red-500 text-white px-1.5 py-0.5 border border-slate-950 font-black">
-              {violations} KALI
+            <span className="inline-block bg-red-600 text-white px-2 py-0.5 rounded-full font-extrabold ml-1">
+              {violations} Kali
             </span>
-          </p>
+          </div>
+
           <button
+            type="button"
             onClick={onClose}
-            className="w-full bg-[#8CC63F] hover:bg-[#9bd64d] text-slate-950 font-black uppercase tracking-wider py-3 px-6 border-3 border-slate-950 shadow-[5px_5px_0px_0px_#0f172a] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[3px_3px_0px_0px_#0f172a] transition-all cursor-pointer"
+            className="w-full bg-[#8CC63F] hover:bg-[#7BB335] text-slate-950 font-bold uppercase tracking-wider text-xs md:text-sm py-3.5 px-6 rounded-xl shadow-sm hover:shadow transition-all cursor-pointer"
           >
             Saya Mengerti &amp; Lanjutkan Ujian
           </button>
@@ -45,4 +71,3 @@ export default function ViolationModal({ violations, onClose }: ViolationModalPr
     </div>
   );
 }
-
