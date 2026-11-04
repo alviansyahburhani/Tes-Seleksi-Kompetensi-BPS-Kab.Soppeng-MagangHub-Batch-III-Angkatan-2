@@ -19,6 +19,7 @@ export interface DataPraktik {
 export interface IdentitasPeserta {
   namaPeserta: string;
   emailPeserta: string;
+  teleponPeserta?: string;
   posisiDilamar: string;
   alamatPeserta: string;
 }

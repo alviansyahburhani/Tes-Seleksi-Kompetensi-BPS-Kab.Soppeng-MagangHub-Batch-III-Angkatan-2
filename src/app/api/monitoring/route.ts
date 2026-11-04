@@ -40,13 +40,14 @@ export async function GET(request: Request) {
         const rowNumber = idx + 2;
         const namaPeserta = (row?.[0] || '').toString().trim();
         const emailPeserta = (row?.[1] || '').toString().trim();
-        const posisiDilamar = (row?.[2] || '').toString().trim();
-        const waktuMulai = (row?.[4] || '').toString().trim();
-        const batasSelesai = (row?.[5] || '').toString().trim();
-        const sisaWaktu = (row?.[6] || '').toString().trim();
-        const progressStr = (row?.[7] || '').toString().trim();
-        const statusUjian = (row?.[8] || '').toString().trim();
-        const statusWawancara = (row?.[9] || '').toString().trim();
+        const teleponPeserta = (row?.[2] || '').toString().trim();
+        const posisiDilamar = (row?.[3] || '').toString().trim();
+        const waktuMulai = (row?.[5] || '').toString().trim();
+        const batasSelesai = (row?.[6] || '').toString().trim();
+        const sisaWaktu = (row?.[7] || '').toString().trim();
+        const progressStr = (row?.[8] || '').toString().trim();
+        const statusUjian = (row?.[9] || '').toString().trim();
+        const statusWawancara = (row?.[10] || '').toString().trim();
 
         if (!namaPeserta && !emailPeserta) return null;
 
@@ -78,6 +79,8 @@ export async function GET(request: Request) {
           id: idx + 1,
           rowNumber,
           namaPeserta,
+          emailPeserta,
+          teleponPeserta,
           posisiDilamar,
           waktuMulai: waktuMulai || '-',
           batasSelesai: batasSelesai || '-',
@@ -172,7 +175,7 @@ export async function PATCH(request: Request) {
 
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `${SHEET_NAMES.MONITORING}!J${rowNumber}`,
+        range: `${SHEET_NAMES.MONITORING}!K${rowNumber}`,
         valueInputOption: 'RAW',
         requestBody: {
           values: [sanitizeSheetRow([nilaiWawancara])],

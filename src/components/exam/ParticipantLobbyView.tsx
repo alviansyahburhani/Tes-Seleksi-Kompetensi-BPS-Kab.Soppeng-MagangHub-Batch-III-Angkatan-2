@@ -314,7 +314,7 @@ export default function ParticipantLobbyView({
                 </span>
                 <p className="text-lg font-black text-slate-950 leading-tight">{namaPeserta}</p>
                 <p className="text-xs font-bold text-slate-600 mt-0.5">
-                  {emailPeserta} • {alamatPeserta}
+                  {emailPeserta} {lobbyStatus.teleponPeserta ? `• 📞 ${lobbyStatus.teleponPeserta}` : ''} • {alamatPeserta}
                 </p>
               </div>
               <div className="md:text-right">
@@ -682,6 +682,7 @@ export default function ParticipantLobbyView({
         <p className="text-[11px] font-bold text-slate-500">
           Developed by{' '}
           <a
+
             href="https://alviansyah.vercel.app/"
             target="_blank"
             rel="noopener noreferrer"

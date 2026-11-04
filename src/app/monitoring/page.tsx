@@ -11,6 +11,8 @@ interface PesertaMonitoring {
   id: number;
   rowNumber: number;
   namaPeserta: string;
+  emailPeserta?: string;
+  teleponPeserta?: string;
   posisiDilamar: string;
   waktuMulai: string;
   batasSelesai: string;
@@ -1089,6 +1091,11 @@ export default function MonitoringAdminPage() {
                                     </span>
                                   )}
                                 </div>
+                                {(p.emailPeserta || p.teleponPeserta) && (
+                                  <p className="text-[11px] font-bold text-slate-500 mt-0.5">
+                                    {p.emailPeserta} {p.teleponPeserta ? `• 📞 ${p.teleponPeserta}` : ''}
+                                  </p>
+                                )}
                               </td>
 
                               {/* Posisi */}
@@ -1263,7 +1270,12 @@ export default function MonitoringAdminPage() {
                                 {idx + 1}
                               </td>
                               <td className="py-4 px-4 border-r-2 border-slate-950 font-black text-sm">
-                                {p.namaPeserta}
+                                <p>{p.namaPeserta}</p>
+                                {(p.emailPeserta || p.teleponPeserta) && (
+                                  <p className="text-[11px] font-bold text-slate-500 mt-0.5">
+                                    {p.emailPeserta} {p.teleponPeserta ? `• 📞 ${p.teleponPeserta}` : ''}
+                                  </p>
+                                )}
                               </td>
                               <td className="py-4 px-4 border-r-2 border-slate-950">
                                 <span
@@ -1398,7 +1410,12 @@ export default function MonitoringAdminPage() {
                                 {idx + 1}
                               </td>
                               <td className="py-4 px-4 border-r-2 border-slate-950 font-black text-sm">
-                                {p.namaPeserta}
+                                <p>{p.namaPeserta}</p>
+                                {(p.emailPeserta || p.teleponPeserta) && (
+                                  <p className="text-[11px] font-bold text-slate-500 mt-0.5">
+                                    {p.emailPeserta} {p.teleponPeserta ? `• 📞 ${p.teleponPeserta}` : ''}
+                                  </p>
+                                )}
                               </td>
                               <td className="py-4 px-4 border-r-2 border-slate-950">
                                 <span

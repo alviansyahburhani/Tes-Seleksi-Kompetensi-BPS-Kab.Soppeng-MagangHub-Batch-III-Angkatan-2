@@ -42,16 +42,17 @@ async function createMonitoringSheetIfMissing(sheets: any, spreadsheetId: string
     });
   }
 
-  // Pastikan header kolom A1:J1 mencakup Status Wawancara di Kolom J
+  // Pastikan header kolom A1:K1 mencakup No. Telepon di Kolom C dan Status Wawancara di Kolom K
   await sheets.spreadsheets.values.update({
     spreadsheetId,
-    range: `${SHEET_NAMES.MONITORING}!A1:J1`,
+    range: `${SHEET_NAMES.MONITORING}!A1:K1`,
     valueInputOption: 'RAW',
     requestBody: {
       values: [
         [
           'Nama Peserta',
           'Email',
+          'No. Telepon',
           'Posisi Dilamar',
           'Alamat Domisili',
           'Waktu Mulai',
@@ -116,10 +117,11 @@ export async function GET(request: Request) {
 
     const rNama = (targetRow[0] || '').toString().trim();
     const rEmail = (targetRow[1] || '').toString().trim();
-    const rPosisi = (targetRow[2] || '').toString().trim();
-    const rAlamat = (targetRow[3] || '').toString().trim();
-    const statusUjian = (targetRow[8] || '').toString().trim();
-    const statusWawancara = (targetRow[9] || '').toString().trim();
+    const rTelepon = (targetRow[2] || '').toString().trim();
+    const rPosisi = (targetRow[3] || '').toString().trim();
+    const rAlamat = (targetRow[4] || '').toString().trim();
+    const statusUjian = (targetRow[9] || '').toString().trim();
+    const statusWawancara = (targetRow[10] || '').toString().trim();
 
     const upperUjian = statusUjian.toUpperCase();
     const upperWawancara = statusWawancara.toUpperCase();
@@ -142,6 +144,7 @@ export async function GET(request: Request) {
       rowNumber: foundRowNumber,
       namaPeserta: rNama,
       emailPeserta: rEmail,
+      teleponPeserta: rTelepon,
       posisiDilamar: rPosisi,
       alamatPeserta: rAlamat,
       statusUjian,
@@ -178,6 +181,7 @@ export async function POST(request: Request) {
       rowNumber: inputRowNumber,
       namaPeserta,
       emailPeserta,
+      teleponPeserta,
       posisiDilamar,
       alamatPeserta,
       totalSoal,
@@ -187,27 +191,38 @@ export async function POST(request: Request) {
     const cleanEmail = (emailPeserta || '').toString().trim().toLowerCase();
     const cleanNama = (namaPeserta || '').toString().trim().toLowerCase();
 
-    if (!cleanEmail || !cleanNama) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Nama dan Email wajib diisi.',
-        },
-        { status: 400 }
-      );
+    // Mode QUICK_LOGIN: Digunakan saat peserta pindah dari HP ke Laptop Ruang Ujian (Hanya butuh Email)
+    if (action === 'QUICK_LOGIN') {
+      if (!cleanEmail) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Silakan masukkan email yang Anda gunakan saat mengisi daftar hadir di HP.',
+          },
+          { status: 400 }
+        );
+      }
+    } else {
+      if (!cleanEmail || !cleanNama) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Nama dan Email wajib diisi.',
+          },
+          { status: 400 }
+        );
+      }
     }
 
     const { sheets, spreadsheetId } = await getGoogleSheetsInstance();
 
-    // Baca Monitoring_Peserta!A2:J500
+    // Ambil data dari Monitoring_Peserta via RAM Cache (menghemat read request Google Sheets)
     let existingRows: any[] = [];
     try {
-      const existingRes = await sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: `${SHEET_NAMES.MONITORING}!A2:J500`,
-      });
-      existingRows = existingRes.data.values || [];
-      isMonitoringSheetVerified = true;
+      if (!isMonitoringSheetVerified) {
+        await createMonitoringSheetIfMissing(sheets, spreadsheetId);
+      }
+      existingRows = await getCachedMonitoringRows();
     } catch {
       await createMonitoringSheetIfMissing(sheets, spreadsheetId);
       existingRows = [];
@@ -220,10 +235,68 @@ export async function POST(request: Request) {
       const rowNama = (row?.[0] || '').toString().trim().toLowerCase();
       const rowEmail = (row?.[1] || '').toString().trim().toLowerCase();
 
-      if (rowEmail === cleanEmail || rowNama === cleanNama) {
+      if (rowEmail === cleanEmail || (cleanNama && rowNama === cleanNama)) {
         foundIndex = i;
         break;
       }
+    }
+
+    // =========================================================================
+    // MODE 0: QUICK_LOGIN (MASUK CEPAT MENGGUNAKAN EMAIL YANG TERDAFTAR DI HP)
+    // =========================================================================
+    if (action === 'QUICK_LOGIN') {
+      if (foundIndex === -1) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Email "${emailPeserta}" belum terdaftar dalam Daftar Hadir. Pastikan Anda memasukkan email yang sama persis seperti saat absen di HP, atau silakan isi formulir pada tab "Daftar Hadir Baru".`,
+          },
+          { status: 404 }
+        );
+      }
+
+      const existingRow = existingRows[foundIndex];
+      const existingRowNumber = foundIndex + 2;
+      const rNama = (existingRow[0] || '').toString().trim();
+      const rEmail = (existingRow[1] || emailPeserta).toString().trim();
+      const rTelepon = (existingRow[2] || '').toString().trim();
+      const rPosisi = (existingRow[3] || '').toString().trim();
+      const rAlamat = (existingRow[4] || '').toString().trim();
+      const statusUjian = (existingRow[9] || '').toString().trim();
+      const statusWawancara = (existingRow[10] || '').toString().trim();
+
+      const upperUjian = statusUjian.toUpperCase();
+      const upperWawancara = statusWawancara.toUpperCase();
+
+      const kompetensiSelesai = upperUjian.includes('SELESAI');
+      const sedangUjian = upperUjian.includes('SEDANG');
+      const wawancaraApproved =
+        upperWawancara.includes('SUDAH') ||
+        upperWawancara.includes('SELESAI') ||
+        upperWawancara.includes('APPROVED');
+      const kompetensiApproved = isKompetensiApproved(
+        existingRowNumber,
+        rEmail,
+        rNama,
+        statusUjian
+      );
+
+      return NextResponse.json({
+        success: true,
+        isExisting: true,
+        rowNumber: existingRowNumber,
+        namaPeserta: rNama,
+        emailPeserta: rEmail,
+        teleponPeserta: rTelepon,
+        posisiDilamar: rPosisi,
+        alamatPeserta: rAlamat,
+        statusUjian,
+        statusWawancara,
+        kompetensiApproved,
+        kompetensiSelesai,
+        sedangUjian,
+        wawancaraApproved,
+      });
     }
 
     // =========================================================================
@@ -236,10 +309,11 @@ export async function POST(request: Request) {
         const existingRowNumber = foundIndex + 2;
         const rNama = (existingRow[0] || namaPeserta).toString().trim();
         const rEmail = (existingRow[1] || emailPeserta).toString().trim();
-        const rPosisi = (existingRow[2] || posisiDilamar).toString().trim();
-        const rAlamat = (existingRow[3] || alamatPeserta).toString().trim();
-        const statusUjian = (existingRow[8] || '').toString().trim();
-        const statusWawancara = (existingRow[9] || '').toString().trim();
+        const rTelepon = (existingRow[2] || teleponPeserta || '').toString().trim();
+        const rPosisi = (existingRow[3] || posisiDilamar).toString().trim();
+        const rAlamat = (existingRow[4] || alamatPeserta).toString().trim();
+        const statusUjian = (existingRow[9] || '').toString().trim();
+        const statusWawancara = (existingRow[10] || '').toString().trim();
 
         const upperUjian = statusUjian.toUpperCase();
         const upperWawancara = statusWawancara.toUpperCase();
@@ -263,6 +337,7 @@ export async function POST(request: Request) {
           rowNumber: existingRowNumber,
           namaPeserta: rNama,
           emailPeserta: rEmail,
+          teleponPeserta: rTelepon,
           posisiDilamar: rPosisi,
           alamatPeserta: rAlamat,
           statusUjian,
@@ -275,10 +350,18 @@ export async function POST(request: Request) {
       }
 
       // Jika belum pernah daftar hadir:
-      // Simpan Nama, Email, Posisi, Alamat di Kolom A-D, dan KOSONGKAN Kolom E-J terlebih dahulu!
+      // Validasi bahwa posisi formasi telah dipilih oleh peserta
+      if (!posisiDilamar || !posisiDilamar.trim()) {
+        return NextResponse.json(
+          { success: false, error: 'Silakan pilih posisi yang Anda lamar terlebih dahulu.' },
+          { status: 400 }
+        );
+      }
+
+      // Simpan Nama, Email, No. Telepon, Posisi, Alamat di Kolom A-E, dan KOSONGKAN Kolom F-K terlebih dahulu!
       const appendRes = await sheets.spreadsheets.values.append({
         spreadsheetId,
-        range: `${SHEET_NAMES.MONITORING}!A:J`,
+        range: `${SHEET_NAMES.MONITORING}!A:K`,
         valueInputOption: 'RAW',
         insertDataOption: 'INSERT_ROWS',
         requestBody: {
@@ -286,14 +369,15 @@ export async function POST(request: Request) {
             sanitizeSheetRow([
               namaPeserta.trim(),
               emailPeserta.trim(),
+              (teleponPeserta || '').toString().trim(),
               posisiDilamar,
               alamatPeserta.trim(),
-              '', // Kolom E: Waktu Mulai (Kosong sampai klik Mulai Ujian)
-              '', // Kolom F: Batas Selesai (Kosong sampai klik Mulai Ujian)
-              '', // Kolom G: Sisa Waktu (Kosong sampai klik Mulai Ujian)
-              '', // Kolom H: Progress Jawaban (Kosong sampai klik Mulai Ujian)
-              '', // Kolom I: Status Ujian (Kosong sampai klik Mulai Ujian)
-              '', // Kolom J: Status Wawancara (Kosong sampai di-approve Admin)
+              '', // Kolom F: Waktu Mulai (Kosong sampai klik Mulai Ujian)
+              '', // Kolom G: Batas Selesai (Kosong sampai klik Mulai Ujian)
+              '', // Kolom H: Sisa Waktu (Kosong sampai klik Mulai Ujian)
+              '', // Kolom I: Progress Jawaban (Kosong sampai klik Mulai Ujian)
+              '', // Kolom J: Status Ujian (Kosong sampai klik Mulai Ujian)
+              '', // Kolom K: Status Wawancara (Kosong sampai di-approve Admin)
             ]),
           ],
         },
@@ -312,6 +396,7 @@ export async function POST(request: Request) {
         rowNumber,
         namaPeserta: namaPeserta.trim(),
         emailPeserta: emailPeserta.trim(),
+        teleponPeserta: (teleponPeserta || '').toString().trim(),
         posisiDilamar,
         alamatPeserta: alamatPeserta.trim(),
         statusUjian: '',
@@ -328,7 +413,7 @@ export async function POST(request: Request) {
     // =========================================================================
     const targetRowNumber = inputRowNumber || (foundIndex !== -1 ? foundIndex + 2 : null);
     const existingRow = foundIndex !== -1 ? existingRows[foundIndex] : null;
-    const currentStatusUjian = (existingRow?.[8] || '').toString().trim();
+    const currentStatusUjian = (existingRow?.[9] || '').toString().trim();
     const upperUjian = currentStatusUjian.toUpperCase();
 
     if (upperUjian.includes('SELESAI')) {
@@ -392,10 +477,10 @@ export async function POST(request: Request) {
     let finalRowNumber = targetRowNumber;
 
     if (finalRowNumber) {
-      // Update Kolom E s/d I pada baris kehadiran peserta tersebut
+      // Update Kolom F s/d J pada baris kehadiran peserta tersebut
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `${SHEET_NAMES.MONITORING}!E${finalRowNumber}:I${finalRowNumber}`,
+        range: `${SHEET_NAMES.MONITORING}!F${finalRowNumber}:J${finalRowNumber}`,
         valueInputOption: 'RAW',
         requestBody: {
           values: [
@@ -413,7 +498,7 @@ export async function POST(request: Request) {
       // Fallback jika baris belum ada
       const appendRes = await sheets.spreadsheets.values.append({
         spreadsheetId,
-        range: `${SHEET_NAMES.MONITORING}!A:J`,
+        range: `${SHEET_NAMES.MONITORING}!A:K`,
         valueInputOption: 'RAW',
         insertDataOption: 'INSERT_ROWS',
         requestBody: {
@@ -421,6 +506,7 @@ export async function POST(request: Request) {
             sanitizeSheetRow([
               namaPeserta.trim(),
               emailPeserta.trim(),
+              (teleponPeserta || '').toString().trim(),
               posisiDilamar,
               alamatPeserta.trim(),
               waktuMulaiStr,
@@ -570,7 +656,7 @@ export async function PUT(request: Request) {
 
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `${SHEET_NAMES.MONITORING}!G${rowNumber}:I${rowNumber}`,
+      range: `${SHEET_NAMES.MONITORING}!H${rowNumber}:J${rowNumber}`,
       valueInputOption: 'RAW',
       requestBody: {
         values: [

@@ -39,7 +39,8 @@ export default function UjianSKD() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [namaPeserta, setNamaPeserta] = useState('');
   const [emailPeserta, setEmailPeserta] = useState('');
-  const [posisiDilamar, setPosisiDilamar] = useState<string>(POSISI_OPTIONS[0]);
+  const [teleponPeserta, setTeleponPeserta] = useState('');
+  const [posisiDilamar, setPosisiDilamar] = useState<string>('');
   const [alamatPeserta, setAlamatPeserta] = useState('');
   const [loginError, setLoginError] = useState('');
 
@@ -111,8 +112,8 @@ export default function UjianSKD() {
   }, [monitoringRowNumber]);
 
   useEffect(() => {
-    identitasRef.current = { namaPeserta, emailPeserta, posisiDilamar, alamatPeserta };
-  }, [namaPeserta, emailPeserta, posisiDilamar, alamatPeserta]);
+    identitasRef.current = { namaPeserta, emailPeserta, teleponPeserta, posisiDilamar, alamatPeserta };
+  }, [namaPeserta, emailPeserta, teleponPeserta, posisiDilamar, alamatPeserta]);
 
   useEffect(() => {
     const active = soalList[currentIndex];
@@ -170,7 +171,8 @@ export default function UjianSKD() {
           if (parsedLobby && parsedLobby.namaPeserta && parsedLobby.emailPeserta) {
             setNamaPeserta(parsedLobby.namaPeserta);
             setEmailPeserta(parsedLobby.emailPeserta);
-            setPosisiDilamar(parsedLobby.posisiDilamar || POSISI_OPTIONS[0]);
+            setTeleponPeserta(parsedLobby.teleponPeserta || '');
+            setPosisiDilamar(parsedLobby.posisiDilamar || '');
             setAlamatPeserta(parsedLobby.alamatPeserta || '');
             setMonitoringRowNumber(parsedLobby.rowNumber || null);
             setLobbyStatus(parsedLobby);
@@ -482,6 +484,12 @@ export default function UjianSKD() {
   // =========================================================================
   const handleConfirmRegister = async (): Promise<boolean> => {
     setLoginError('');
+
+    if (!posisiDilamar || !posisiDilamar.trim()) {
+      setLoginError('Silakan pilih Posisi yang Anda lamar terlebih dahulu!');
+      return false;
+    }
+
     setRegistering(true);
 
     try {
@@ -492,6 +500,7 @@ export default function UjianSKD() {
           action: 'REGISTER',
           namaPeserta: namaPeserta.trim(),
           emailPeserta: emailPeserta.trim(),
+          teleponPeserta: teleponPeserta.trim(),
           posisiDilamar,
           alamatPeserta: alamatPeserta.trim(),
         }),
@@ -507,6 +516,7 @@ export default function UjianSKD() {
         rowNumber: json.rowNumber,
         namaPeserta: json.namaPeserta || namaPeserta.trim(),
         emailPeserta: json.emailPeserta || emailPeserta.trim(),
+        teleponPeserta: json.teleponPeserta || teleponPeserta.trim(),
         posisiDilamar: json.posisiDilamar || posisiDilamar,
         alamatPeserta: json.alamatPeserta || alamatPeserta.trim(),
         statusUjian: json.statusUjian || '',
@@ -519,6 +529,7 @@ export default function UjianSKD() {
 
       setNamaPeserta(statusPayload.namaPeserta);
       setEmailPeserta(statusPayload.emailPeserta);
+      setTeleponPeserta(statusPayload.teleponPeserta || '');
       setPosisiDilamar(statusPayload.posisiDilamar);
       setAlamatPeserta(statusPayload.alamatPeserta);
       setMonitoringRowNumber(statusPayload.rowNumber);
@@ -528,6 +539,68 @@ export default function UjianSKD() {
         localStorage.setItem(PARTICIPANT_LOBBY_STORAGE_KEY, JSON.stringify(statusPayload));
       } catch {}
 
+      return true;
+    } catch {
+      setLoginError('Gagal menghubungi server. Periksa koneksi internet Anda.');
+      return false;
+    } finally {
+      setRegistering(false);
+    }
+  };
+
+  // =========================================================================
+  // TAHAP 1.B: MASUK CEPAT DENGAN EMAIL BAGI PESERTA YANG SUDAH ABSEN DI HP
+  // =========================================================================
+  const handleQuickLogin = async (emailInput: string): Promise<boolean> => {
+    setLoginError('');
+    setRegistering(true);
+
+    try {
+      const res = await fetch('/api/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'QUICK_LOGIN',
+          emailPeserta: emailInput.trim(),
+        }),
+      });
+      const json = await res.json();
+
+      if (!res.ok || !json.success) {
+        setLoginError(json.error || 'Email belum terdaftar dalam daftar hadir.');
+        return false;
+      }
+
+      const statusPayload: ParticipantLobbyStatus = {
+        rowNumber: json.rowNumber,
+        namaPeserta: json.namaPeserta,
+        emailPeserta: json.emailPeserta,
+        teleponPeserta: json.teleponPeserta || '',
+        posisiDilamar: json.posisiDilamar,
+        alamatPeserta: json.alamatPeserta,
+        statusUjian: json.statusUjian || '',
+        statusWawancara: json.statusWawancara || '',
+        kompetensiApproved: Boolean(json.kompetensiApproved),
+        kompetensiSelesai: Boolean(json.kompetensiSelesai),
+        sedangUjian: Boolean(json.sedangUjian),
+        wawancaraApproved: Boolean(json.wawancaraApproved),
+      };
+
+      setNamaPeserta(statusPayload.namaPeserta);
+      setEmailPeserta(statusPayload.emailPeserta);
+      setTeleponPeserta(statusPayload.teleponPeserta || '');
+      setPosisiDilamar(statusPayload.posisiDilamar);
+      setAlamatPeserta(statusPayload.alamatPeserta);
+      setMonitoringRowNumber(statusPayload.rowNumber);
+      setLobbyStatus(statusPayload);
+
+      try {
+        localStorage.setItem(PARTICIPANT_LOBBY_STORAGE_KEY, JSON.stringify(statusPayload));
+        localStorage.setItem(TERMS_ACCEPTED_STORAGE_KEY, 'true');
+      } catch {}
+
+      setHasAcceptedTerms(true);
+      setIsInLobby(true);
       return true;
     } catch {
       setLoginError('Gagal menghubungi server. Periksa koneksi internet Anda.');
@@ -588,6 +661,7 @@ export default function UjianSKD() {
           rowNumber: json.rowNumber,
           namaPeserta: json.namaPeserta,
           emailPeserta: json.emailPeserta,
+          teleponPeserta: json.teleponPeserta || '',
           posisiDilamar: json.posisiDilamar,
           alamatPeserta: json.alamatPeserta,
           statusUjian: json.statusUjian || '',
@@ -702,6 +776,8 @@ export default function UjianSKD() {
         setNamaPeserta={setNamaPeserta}
         emailPeserta={emailPeserta}
         setEmailPeserta={setEmailPeserta}
+        teleponPeserta={teleponPeserta}
+        setTeleponPeserta={setTeleponPeserta}
         posisiDilamar={posisiDilamar}
         setPosisiDilamar={setPosisiDilamar}
         alamatPeserta={alamatPeserta}
@@ -710,6 +786,7 @@ export default function UjianSKD() {
         setLoginError={setLoginError}
         registering={registering}
         onConfirmRegister={handleConfirmRegister}
+        onQuickLogin={handleQuickLogin}
         onCompleteTerms={() => {
           setHasAcceptedTerms(true);
           try {
