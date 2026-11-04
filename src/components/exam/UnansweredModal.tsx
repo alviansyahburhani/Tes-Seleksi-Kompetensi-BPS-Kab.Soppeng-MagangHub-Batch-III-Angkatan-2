@@ -7,27 +7,53 @@ interface UnansweredModalProps {
 
 export default function UnansweredModal({ message, onClose }: UnansweredModalProps) {
   return (
-    <div className="fixed inset-0 bg-slate-950/75 z-50 flex items-center justify-center p-4">
-      <div className="bg-[#FFFDF7] border-4 border-slate-950 max-w-md w-full shadow-[12px_12px_0px_0px_#F7941D] overflow-hidden">
-        <div className="bg-[#F7941D] border-b-4 border-slate-950 px-6 py-3 flex items-center justify-between">
-          <span className="font-black text-slate-950 uppercase tracking-wider text-sm">
-            ⚠️ Belum Dapat Mengumpulkan
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl border border-slate-200 max-w-md w-full shadow-2xl overflow-hidden">
+        {/* Garis Aksen Atas */}
+        <div className="h-2 w-full bg-[#F7941D]" />
+
+        {/* Header Modal */}
+        <div className="bg-slate-900 px-6 py-4 flex items-center justify-between">
+          <span className="font-bold text-white uppercase tracking-wider text-xs md:text-sm">
+            Belum Dapat Mengumpulkan
           </span>
-          <span className="bg-slate-950 text-white text-xs font-black px-2 py-0.5">
-            SOAL KOSONG
+          <span className="bg-[#F7941D] text-slate-950 text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full">
+            Soal Kosong
           </span>
         </div>
-        <div className="p-6 text-center">
-          <div className="inline-block bg-[#00AEEF] border-3 border-slate-950 px-4 py-2 font-black text-xl text-slate-950 shadow-[4px_4px_0px_0px_#0f172a] mb-4">
-            📝 LENGKAPI JAWABAN ANDA
+
+        {/* Isi Modal */}
+        <div className="p-6 md:p-7 text-center">
+          <div className="w-14 h-14 mx-auto mb-3.5 rounded-2xl bg-[#F7941D]/15 text-[#D97706] border border-[#F7941D]/30 flex items-center justify-center">
+            <svg
+              className="w-7 h-7"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
           </div>
-          <p className="text-slate-950 font-black text-sm md:text-base mb-6 leading-relaxed">
-            {message}
-          </p>
+
+          <h3 className="text-lg font-extrabold text-slate-900 tracking-tight mb-2">
+            Lengkapi Jawaban Anda
+          </h3>
+
+          <div className="bg-amber-50 border-2 border-[#F7941D]/45 rounded-2xl p-4 mb-6">
+            <p className="text-slate-800 font-semibold text-xs md:text-sm leading-relaxed">
+              {message}
+            </p>
+          </div>
+
           <button
             type="button"
             onClick={onClose}
-            className="w-full bg-[#8CC63F] hover:bg-[#9bd64d] text-slate-950 font-black uppercase tracking-wider py-3 px-6 border-3 border-slate-950 shadow-[5px_5px_0px_0px_#0f172a] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[3px_3px_0px_0px_#0f172a] transition-all cursor-pointer"
+            className="w-full bg-[#00AEEF] hover:bg-[#0299D4] text-white font-bold uppercase tracking-wider text-xs md:text-sm py-3.5 px-6 rounded-xl shadow-sm hover:shadow transition-all cursor-pointer"
           >
             Kerjakan Soal Sekarang
           </button>
@@ -36,4 +62,3 @@ export default function UnansweredModal({ message, onClose }: UnansweredModalPro
     </div>
   );
 }
-
