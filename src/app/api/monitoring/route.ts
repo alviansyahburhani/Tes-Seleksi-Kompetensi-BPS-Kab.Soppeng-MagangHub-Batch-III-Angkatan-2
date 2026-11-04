@@ -48,6 +48,7 @@ export async function GET(request: Request) {
         const progressStr = (row?.[8] || '').toString().trim();
         const statusUjian = (row?.[9] || '').toString().trim();
         const statusWawancara = (row?.[10] || '').toString().trim();
+        const statusKelulusan = (row?.[11] || '').toString().trim();
 
         if (!namaPeserta && !emailPeserta) return null;
 
@@ -91,6 +92,7 @@ export async function GET(request: Request) {
           totalSoal,
           statusUjian,
           statusWawancara,
+          statusKelulusan,
           kompetensiApproved,
           wawancaraApproved,
         };

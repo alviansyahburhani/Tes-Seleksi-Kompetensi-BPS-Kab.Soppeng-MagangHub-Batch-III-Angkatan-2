@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+
 interface FinishedViewProps {
   namaPeserta: string;
   emailPeserta: string;
@@ -7,6 +9,7 @@ interface FinishedViewProps {
   terjawabCount: number;
   totalSoal: number;
   wawancaraApproved?: boolean;
+  statusKelulusan?: string;
   onBackToLobby?: () => void;
 }
 
@@ -17,8 +20,62 @@ export default function FinishedView({
   terjawabCount,
   totalSoal,
   wawancaraApproved = false,
+  statusKelulusan = '',
   onBackToLobby,
 }: FinishedViewProps) {
+  const [notifPermission, setNotifPermission] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('default');
+  const [notifFeedback, setNotifFeedback] = useState('');
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      setNotifPermission('unsupported');
+      return;
+    }
+    setNotifPermission(Notification.permission);
+  }, []);
+
+  const handleRequestNotif = async () => {
+    setNotifFeedback('');
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      setNotifPermission('unsupported');
+      setNotifFeedback('Browser perangkat Anda tidak mendukung notifikasi sistem.');
+      return;
+    }
+    try {
+      const perm = await Notification.requestPermission();
+      setNotifPermission(perm);
+      if (perm === 'granted') {
+        setNotifFeedback('Notifikasi aktif! Anda akan diberitahu saat pengumuman kelulusan keluar.');
+        try {
+          new Notification('Notifikasi Pengumuman BPS Soppeng Aktif', {
+            body: `Halo ${namaPeserta}, izin notifikasi pengumuman kelulusan Anda telah diaktifkan.`,
+            icon: '/BPSIndonesia.svg',
+          });
+        } catch {}
+      } else if (perm === 'denied') {
+        setNotifFeedback('Izin notifikasi ditolak pada pengaturan browser Anda.');
+      }
+    } catch {
+      setNotifFeedback('Gagal mengaktifkan izin notifikasi.');
+    }
+  };
+
+  const rawKelulusan = (statusKelulusan || '').trim();
+  const upperKelulusan = rawKelulusan.toUpperCase();
+  const hasKelulusanValue = rawKelulusan.length > 0;
+  const isTidakLulus =
+    hasKelulusanValue &&
+    (upperKelulusan.includes('TIDAK') ||
+      upperKelulusan.includes('BELUM') ||
+      upperKelulusan.includes('GAGAL') ||
+      upperKelulusan.includes('DITOLAK'));
+  const isLulus =
+    hasKelulusanValue &&
+    !isTidakLulus &&
+    (upperKelulusan.includes('LULUS') ||
+      upperKelulusan.includes('LOLOS') ||
+      upperKelulusan.includes('DITERIMA') ||
+      upperKelulusan.includes('PASS'));
   return (
     <main className="min-h-screen bg-[#FFFDF7] flex items-center justify-center p-4">
       <div className="bg-white border-4 border-slate-950 shadow-[10px_10px_0px_0px_#0f172a] max-w-lg w-full overflow-hidden">
