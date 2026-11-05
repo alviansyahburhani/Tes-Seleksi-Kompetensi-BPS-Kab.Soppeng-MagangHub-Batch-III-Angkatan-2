@@ -17,7 +17,11 @@ import {
   TipeSoal,
 } from '@/types/exam';
 import { formatTime } from '@/utils/examHelper';
-import { playViolationAlarm, stopViolationAlarm } from '@/utils/mediaHelper';
+import {
+  playViolationAlarm,
+  stopViolationAlarm,
+  unlockViolationAlarm,
+} from '@/utils/mediaHelper';
 import FinishedView from '@/components/exam/FinishedView';
 import ViolationModal from '@/components/exam/ViolationModal';
 import UnansweredModal from '@/components/exam/UnansweredModal';
@@ -25,6 +29,25 @@ import ConfirmSubmitModal from '@/components/exam/ConfirmSubmitModal';
 import ExamHeader from '@/components/exam/ExamHeader';
 import QuestionCard from '@/components/exam/QuestionCard';
 import QuestionNavigationMap from '@/components/exam/QuestionNavigationMap';
+
+// Lama waktu (ms) pengamatan aktivitas Paste setelah peserta kembali ke halaman ujian
+const PASTE_WATCH_MS = 15000;
+
+// Info saat peserta meninggalkan halaman (dipakai untuk menghitung durasi keluar)
+type LeaveInfo = { leftAt: number; soalNo: number; ke: number };
+// Log pelanggaran yang menunggu hasil pengamatan Paste sebelum dikirim ke sheet
+type PendingViolationLog = {
+  deskripsi: string;
+  ke: number;
+  timer: ReturnType<typeof setTimeout>;
+};
+
+const formatDurasi = (totalDetik: number) => {
+  if (totalDetik < 60) return `${totalDetik} detik`;
+  const menit = Math.floor(totalDetik / 60);
+  const detik = totalDetik % 60;
+  return detik > 0 ? `${menit} menit ${detik} detik` : `${menit} menit`;
+};
 
 export default function UjianPage() {
   const router = useRouter();
@@ -75,6 +98,9 @@ export default function UjianPage() {
   const lastSyncedTerjawabCountRef = useRef<number>(0);
   const showWarningRef = useRef(showWarning);
   const lastViolationLogTimeRef = useRef<number>(0);
+  const currentIndexRef = useRef(currentIndex);
+  const leaveInfoRef = useRef<LeaveInfo | null>(null);
+  const pendingViolationLogRef = useRef<PendingViolationLog | null>(null);
 
   const terjawabCount = Object.values(jawaban).filter((val) => val && val.trim() !== '').length;
 
@@ -119,6 +145,7 @@ export default function UjianPage() {
   useEffect(() => {
     const active = soalList[currentIndex];
     activeSoalTipeRef.current = active?.tipe || 'PG';
+    currentIndexRef.current = currentIndex;
   }, [soalList, currentIndex]);
 
   // 1. Pulihkan sesi ujian aktif dari localStorage (Route Guard: jika tidak ada sesi ujian, arahkan ke /lobby atau /login)
@@ -285,7 +312,7 @@ export default function UjianPage() {
           localStorage.removeItem(EXAM_SESSION_STORAGE_KEY);
           setLobbyStatus((prev) => {
             const base: ParticipantLobbyStatus = prev || {
-              rowNumber: monitoringRowRef.current,
+              rowNumber: monitoringRowRef.current ?? 0,
               namaPeserta,
               emailPeserta,
               posisiDilamar,
@@ -455,12 +482,75 @@ export default function UjianPage() {
     forceEjectMissingParticipant,
   ]);
 
+  // 4.9. Unlock audio alarm pada interaksi pengguna (Autoplay Policy) agar alarm langsung
+  //      berbunyi saat peserta pindah tab, bukan baru terdengar ketika kembali.
+  useEffect(() => {
+    if (!isSessionReady || isFinished) return;
+    const unlock = () => unlockViolationAlarm();
+    const opts = { capture: true, passive: true } as const;
+    window.addEventListener('pointerdown', unlock, opts);
+    window.addEventListener('keydown', unlock, opts);
+    window.addEventListener('touchstart', unlock, opts);
+    return () => {
+      window.removeEventListener('pointerdown', unlock, opts);
+      window.removeEventListener('keydown', unlock, opts);
+      window.removeEventListener('touchstart', unlock, opts);
+    };
+  }, [isSessionReady, isFinished]);
+
   // 5. Deteksi Pindah Tab / VisibilityChange (Silent bypass saat di soal DESKRIPSI atau PRAKTIK)
+  //    Log diperkaya: durasi keluar halaman, nomor soal, & aktivitas Paste setelah kembali.
+  //    - Saat keluar  -> tahap 'mulai'  : alarm real-time ke /monitoring + hitung pelanggaran di server
+  //    - Saat kembali -> tahap 'detail' : catat 1 baris lengkap ke sheet Log_Pelanggaran
   useEffect(() => {
     if (!isSessionReady || isFinished) return;
 
+    const kirimLog = (payload: Record<string, unknown>, useBeacon = false) => {
+      const body = JSON.stringify({
+        namaPeserta: `${namaPeserta} (${posisiDilamar})`,
+        murniNama: namaPeserta,
+        emailPeserta,
+        posisiDilamar,
+        ...payload,
+      });
+      if (useBeacon && typeof navigator !== 'undefined' && navigator.sendBeacon) {
+        navigator.sendBeacon('/api/log', new Blob([body], { type: 'application/json' }));
+        return;
+      }
+      fetch('/api/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+        keepalive: true,
+      }).catch(() => {});
+    };
+
+    // Kirim log 'detail' yang sedang menunggu pengamatan Paste
+    const flushPendingLog = (pasteLength?: number, useBeacon = false) => {
+      const pending = pendingViolationLogRef.current;
+      if (!pending) return;
+      clearTimeout(pending.timer);
+      pendingViolationLogRef.current = null;
+
+      const aktivitasPaste =
+        pasteLength && pasteLength > 0
+          ? `Begitu kembali, peserta Paste teks (${pasteLength} huruf)`
+          : `Tidak ada aktivitas Paste dalam ${PASTE_WATCH_MS / 1000} detik setelah kembali`;
+
+      kirimLog(
+        {
+          tahap: 'detail',
+          jenisPelanggaran: `${pending.deskripsi}. ${aktivitasPaste}. (Pelanggaran ke-${pending.ke})`,
+        },
+        useBeacon
+      );
+    };
+
     const handleVisibilityChange = () => {
       if (document.hidden) {
+        // Jika peserta keluar lagi saat masa pengamatan Paste, kirim log sebelumnya terlebih dahulu
+        flushPendingLog();
+
         if (
           activeSoalTipeRef.current === 'PRAKTIK' ||
           activeSoalTipeRef.current === 'DESKRIPSI'
@@ -478,29 +568,64 @@ export default function UjianPage() {
         lastViolationLogTimeRef.current = now;
         showWarningRef.current = true;
 
-        setViolations((prev) => {
-          const nextVal = prev + 1;
-          fetch('/api/log', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              namaPeserta: `${namaPeserta} (${posisiDilamar})`,
-              murniNama: namaPeserta,
-              emailPeserta,
-              posisiDilamar,
-              jenisPelanggaran: `Pindah Tab / Minimize pada Soal Pilihan Ganda (Pelanggaran ke-${nextVal})`,
-            }),
-          }).catch(() => {});
-          return nextVal;
+        const ke = violationsRef.current + 1;
+        const soalNo = currentIndexRef.current + 1;
+        violationsRef.current = ke;
+        setViolations(ke);
+        leaveInfoRef.current = { leftAt: now, soalNo, ke };
+
+        kirimLog({
+          tahap: 'mulai',
+          jenisPelanggaran: `Keluar dari halaman saat mengerjakan Soal #${soalNo} (Pelanggaran ke-${ke})`,
         });
+
         playViolationAlarm(true);
         setShowWarning(true);
+      } else {
+        const info = leaveInfoRef.current;
+        if (!info) return;
+        leaveInfoRef.current = null;
+
+        const durasiDetik = Math.max(1, Math.round((Date.now() - info.leftAt) / 1000));
+        pendingViolationLogRef.current = {
+          deskripsi: `Keluar dari halaman selama ${formatDurasi(durasiDetik)} saat mengerjakan Soal #${info.soalNo}`,
+          ke: info.ke,
+          timer: setTimeout(() => flushPendingLog(), PASTE_WATCH_MS),
+        };
       }
     };
 
+    // Tangkap aktivitas Paste selama masa pengamatan setelah peserta kembali
+    const handlePaste = (e: ClipboardEvent) => {
+      if (!pendingViolationLogRef.current) return;
+      const teks = e.clipboardData?.getData('text') || '';
+      flushPendingLog(teks.length);
+    };
+
+    // Jika peserta menutup / meninggalkan halaman ujian saat masih keluar, tetap catat ke sheet
+    const handlePageHide = () => {
+      flushPendingLog(undefined, true);
+      const info = leaveInfoRef.current;
+      if (!info) return;
+      leaveInfoRef.current = null;
+      const durasiDetik = Math.max(1, Math.round((Date.now() - info.leftAt) / 1000));
+      kirimLog(
+        {
+          tahap: 'detail',
+          jenisPelanggaran: `Keluar dari halaman saat mengerjakan Soal #${info.soalNo}, lalu menutup/meninggalkan halaman ujian setelah ${formatDurasi(durasiDetik)}. (Pelanggaran ke-${info.ke})`,
+        },
+        true
+      );
+    };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('paste', handlePaste, true);
+    window.addEventListener('pagehide', handlePageHide);
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener('paste', handlePaste, true);
+      window.removeEventListener('pagehide', handlePageHide);
+      flushPendingLog();
     };
   }, [isSessionReady, isFinished, namaPeserta, emailPeserta, posisiDilamar]);
 
@@ -642,4 +767,3 @@ export default function UjianPage() {
     </div>
   );
 }
-

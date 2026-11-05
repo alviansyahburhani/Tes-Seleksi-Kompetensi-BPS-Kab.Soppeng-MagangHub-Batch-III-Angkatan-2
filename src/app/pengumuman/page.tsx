@@ -9,6 +9,11 @@ import {
 } from '@/constants/exam';
 import { ParticipantLobbyStatus, SavedExamSession } from '@/types/exam';
 
+// Link undangan Grup WhatsApp untuk peserta yang dinyatakan LULUS.
+// Atur di .env.local: NEXT_PUBLIC_WHATSAPP_GROUP_URL=https://chat.whatsapp.com/xxxxxxxx
+// (Jika kosong, kartu ajakan bergabung grup WhatsApp tidak ditampilkan.)
+const WHATSAPP_GROUP_URL = (process.env.NEXT_PUBLIC_WHATSAPP_GROUP_URL || '').trim();
+
 export default function PengumumanPage() {
   const router = useRouter();
 
@@ -575,6 +580,46 @@ export default function PengumumanPage() {
                     <strong className="font-bold text-slate-900">LULUS ({rawKelulusan})</strong>{' '}
                     pada Seleksi MagangHub BPS Kabupaten Soppeng Batch III Angkatan 2 Tahun 2026.
                   </p>
+
+                  {/* Ajakan Bergabung Grup WhatsApp Peserta Lulus */}
+                  {WHATSAPP_GROUP_URL && (
+                    <div className="bg-white border-2 border-[#25D366]/60 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3.5 shadow-2xs">
+                      <span className="w-11 h-11 rounded-xl bg-[#25D366] text-white flex items-center justify-center shrink-0">
+                        <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                          <path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.61-.92-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.21 3.08c.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.69.63.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2.01-1.41.25-.69.25-1.29.17-1.41-.07-.12-.27-.2-.57-.35zM12.05 21.5h-.01a9.4 9.4 0 0 1-4.79-1.31l-.34-.2-3.56.93.95-3.47-.22-.36a9.38 9.38 0 0 1-1.44-5c0-5.19 4.23-9.41 9.42-9.41 2.51 0 4.88.98 6.65 2.76a9.35 9.35 0 0 1 2.75 6.66c0 5.19-4.23 9.41-9.41 9.41zm8.01-17.42A11.27 11.27 0 0 0 12.05.75C5.8.75.72 5.83.72 12.08c0 2 .52 3.95 1.52 5.66L.62 23.25l5.65-1.48a11.3 11.3 0 0 0 5.78 1.47h.01c6.25 0 11.33-5.08 11.33-11.33 0-3.03-1.18-5.87-3.33-8.01z" />
+                        </svg>
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs md:text-sm font-extrabold text-slate-900">
+                          Wajib Bergabung ke Grup WhatsApp Peserta Lulus
+                        </p>
+                        <p className="text-[11px] md:text-xs text-slate-600 leading-relaxed mt-0.5">
+                          Informasi lanjutan, jadwal, dan koordinasi dengan Panitia BPS Kabupaten
+                          Soppeng akan disampaikan melalui grup ini.
+                        </p>
+                      </div>
+                      <a
+                        href={WHATSAPP_GROUP_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#1EBE5A] text-white font-bold uppercase tracking-wider text-xs py-3 px-4 rounded-xl shadow-sm hover:shadow transition-all shrink-0"
+                      >
+                        Gabung Grup
+                        <svg
+                          className="w-3.5 h-3.5"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M7 17 17 7" />
+                          <path d="M7 7h10v10" />
+                        </svg>
+                      </a>
+                    </div>
+                  )}
 
                   {/* Langkah Tindak Lanjut Melengkapi MagangHub Peserta Lulus */}
                   <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-2 shadow-2xs">

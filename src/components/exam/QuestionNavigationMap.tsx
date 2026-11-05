@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { Soal } from '@/types/exam';
 
 interface QuestionNavigationMapProps {
@@ -12,6 +13,9 @@ interface QuestionNavigationMapProps {
   onSelectQuestion: (idx: number) => void;
 }
 
+// Jumlah maksimal nomor soal yang ditampilkan saat sidebar tertutup (mode dock ringkas)
+const COLLAPSED_MAX_ITEMS = 5;
+
 export default function QuestionNavigationMap({
   soalList,
   jawaban,
@@ -21,6 +25,33 @@ export default function QuestionNavigationMap({
   onToggleCollapse,
   onSelectQuestion,
 }: QuestionNavigationMapProps) {
+  // Ref grid nomor soal (mode terbuka) untuk auto-scroll ke soal aktif
+  const gridListRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll agar nomor soal aktif selalu terlihat (penting saat soal banyak, mis. 50 soal)
+  useEffect(() => {
+    if (isCollapsed) return;
+    const container = gridListRef.current;
+    if (!container) return;
+    const activeBtn = container.querySelector<HTMLElement>('[data-active="true"]');
+    if (!activeBtn) return;
+    const target =
+      activeBtn.offsetTop - container.clientHeight / 2 + activeBtn.clientHeight / 2;
+    container.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
+  }, [currentIndex, isCollapsed, soalList.length]);
+
+  const isSoalAnswered = (s: Soal) => Boolean(jawaban[s.id] && jawaban[s.id].trim() !== '');
+
+  // Mode tertutup: hanya soal yang BELUM dijawab, maksimal 5 nomor,
+  // diurutkan mulai dari soal aktif ke depan (berputar ke awal jika sudah di akhir)
+  const unansweredIdx: number[] = [];
+  for (let i = 0; i < soalList.length; i++) {
+    const idx = (currentIndex + i) % soalList.length;
+    if (!isSoalAnswered(soalList[idx])) unansweredIdx.push(idx);
+  }
+  const collapsedIdx = unansweredIdx.slice(0, COLLAPSED_MAX_ITEMS).sort((a, b) => a - b);
+  const sisaBelumDijawab = unansweredIdx.length - collapsedIdx.length;
+
   return (
     <aside
       className={`w-full ${
@@ -183,30 +214,48 @@ export default function QuestionNavigationMap({
             )}
           </button>
 
-          {/* Daftar Cepat Nomor Soal Vertikal (Scrollable) */}
-          <div className="w-full pt-2 border-t border-white/20 flex flex-col items-center gap-2 max-h-64 overflow-y-auto no-scrollbar py-1">
-            {soalList.map((s, idx) => {
-              const isAnswered = Boolean(jawaban[s.id] && jawaban[s.id].trim() !== '');
-              const isCurrent = currentIndex === idx;
-
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => onSelectQuestion(idx)}
-                  title={`Ke Soal No. ${idx + 1} (${isAnswered ? 'Sudah Dijawab' : 'Belum Dijawab'})`}
-                  className={`w-9 h-9 rounded-xl text-xs font-extrabold flex items-center justify-center shrink-0 transition-all cursor-pointer ${
-                    isCurrent
-                      ? 'bg-white text-[#0284C7] ring-2 ring-[#F7941D] shadow-md scale-105'
-                      : isAnswered
-                        ? 'bg-[#8CC63F] text-slate-950 hover:bg-[#7BB335] shadow-2xs'
+          {/* Daftar Cepat Soal BELUM Dijawab (maks. 5 nomor, mulai dari soal aktif) */}
+          <div className="w-full border-t border-white/20 flex flex-col items-center gap-2 px-1 pt-3">
+            {collapsedIdx.length === 0 ? (
+              <span
+                title="Semua soal sudah dijawab"
+                className="w-9 h-9 rounded-xl bg-[#8CC63F] text-slate-950 flex items-center justify-center text-sm font-extrabold"
+              >
+                ✓
+              </span>
+            ) : (
+              collapsedIdx.map((idx) => {
+                const s = soalList[idx];
+                const isCurrent = currentIndex === idx;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => onSelectQuestion(idx)}
+                    title={`Ke Soal No. ${idx + 1} (Belum Dijawab)`}
+                    className={`w-9 h-9 rounded-xl text-xs font-extrabold flex items-center justify-center shrink-0 transition-all cursor-pointer ${
+                      isCurrent
+                        ? 'bg-white text-[#0284C7] ring-2 ring-[#F7941D] shadow-md'
                         : 'bg-white/15 text-white hover:bg-white/30'
-                  }`}
-                >
-                  {idx + 1}
-                </button>
-              );
-            })}
+                    }`}
+                  >
+                    {idx + 1}
+                  </button>
+                );
+              })
+            )}
+
+            {/* Penanda masih ada soal kosong lain di luar 5 nomor yang ditampilkan */}
+            {sisaBelumDijawab > 0 && (
+              <button
+                type="button"
+                onClick={onToggleCollapse}
+                title={`Masih ada ${sisaBelumDijawab} soal kosong lainnya (Klik untuk membuka daftar soal)`}
+                className="w-9 h-7 rounded-lg text-[10px] font-extrabold text-white/90 bg-white/10 hover:bg-white/25 flex items-center justify-center cursor-pointer transition-all"
+              >
+                +{sisaBelumDijawab}
+              </button>
+            )}
           </div>
         </div>
       ) : (
@@ -234,10 +283,13 @@ export default function QuestionNavigationMap({
             </div>
           </div>
 
-          {/* Grid Nomor Soal */}
-          <div className="grid grid-cols-5 gap-2.5 max-h-80 overflow-y-auto p-1.5">
+          {/* Grid Nomor Soal (padding cukup agar ring & efek scale soal aktif tidak terpotong) */}
+          <div
+            ref={gridListRef}
+            className="relative grid grid-cols-5 gap-2.5 max-h-[min(24rem,calc(100vh-24rem))] min-h-40 overflow-y-auto p-2.5 -m-1"
+          >
             {soalList.map((s, idx) => {
-              const isAnswered = Boolean(jawaban[s.id] && jawaban[s.id].trim() !== '');
+              const isAnswered = isSoalAnswered(s);
               const isCurrent = currentIndex === idx;
 
               let btnStyle =
@@ -252,6 +304,7 @@ export default function QuestionNavigationMap({
                   key={s.id}
                   type="button"
                   onClick={() => onSelectQuestion(idx)}
+                  data-active={isCurrent}
                   className={`h-10 rounded-xl text-xs font-extrabold flex items-center justify-center transition-all duration-200 cursor-pointer shadow-2xs ${btnStyle} ${
                     isCurrent
                       ? 'ring-2 ring-[#00AEEF] ring-offset-2 border-[#00AEEF] text-[#0284C7] shadow-sm scale-105'
@@ -284,4 +337,3 @@ export default function QuestionNavigationMap({
     </aside>
   );
 }
-
