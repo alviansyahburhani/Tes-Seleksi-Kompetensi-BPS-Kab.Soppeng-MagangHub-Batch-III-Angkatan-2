@@ -9,6 +9,11 @@ import {
 } from '@/constants/exam';
 import { ParticipantLobbyStatus, SavedExamSession } from '@/types/exam';
 
+// Link undangan Grup WhatsApp untuk peserta yang dinyatakan LULUS.
+// Atur di .env.local: NEXT_PUBLIC_WHATSAPP_GROUP_URL=https://chat.whatsapp.com/xxxxxxxx
+// (Jika kosong, kartu ajakan bergabung grup WhatsApp tidak ditampilkan.)
+const WHATSAPP_GROUP_URL = (process.env.NEXT_PUBLIC_WHATSAPP_GROUP_URL || '').trim();
+
 export default function PengumumanPage() {
   const router = useRouter();
 
@@ -19,6 +24,7 @@ export default function PengumumanPage() {
   const [notifPermission, setNotifPermission] = useState<
     'default' | 'granted' | 'denied' | 'unsupported'
   >('default');
+  const [isNotifSubscribed, setIsNotifSubscribed] = useState(false);
   const [notifFeedback, setNotifFeedback] = useState('');
   const [hasNotifiedResult, setHasNotifiedResult] = useState(false);
 
@@ -30,6 +36,19 @@ export default function PengumumanPage() {
     }
     setNotifPermission(Notification.permission);
   }, []);
+
+  // Sinkronkan status aktivasi notifikasi per email peserta
+  useEffect(() => {
+    if (!statusData?.emailPeserta || typeof window === 'undefined' || !('Notification' in window)) {
+      return;
+    }
+    try {
+      const subKey = `bps_notif_sub_${statusData.emailPeserta.trim().toLowerCase()}`;
+      if (Notification.permission === 'granted' && localStorage.getItem(subKey) === 'true') {
+        setIsNotifSubscribed(true);
+      }
+    } catch {}
+  }, [statusData?.emailPeserta]);
 
   // 2. Timer cooldown 10 detik untuk tombol Cek Status Kelulusan Terbaru
   useEffect(() => {
@@ -66,14 +85,10 @@ export default function PengumumanPage() {
         }
       }
 
-      // Cek sesi satu kali (one-time session) dari sessionStorage atau fallback dari localStorage
+      // Cek sesi dari sessionStorage atau fallback dari localStorage
+      // (Jangan langsung dihapus saat mount agar aman terhadap React Strict Mode double-mount!)
       const tempLobbyLogin = sessionStorage.getItem('bps_temp_lobby_login_v1');
       const savedLobby = tempLobbyLogin || localStorage.getItem(PARTICIPANT_LOBBY_STORAGE_KEY);
-
-      if (tempLobbyLogin) {
-        // Hapus token satu kali agar jika halaman di-refresh peserta wajib login email kembali di /login
-        sessionStorage.removeItem('bps_temp_lobby_login_v1');
-      }
 
       if (!savedLobby) {
         router.replace('/login');
@@ -96,17 +111,12 @@ export default function PengumumanPage() {
         return;
       }
 
-      // Jika datang dari localStorage lama tanpa token satu kali, bersihkan dan minta login ulang via /login
-      if (!tempLobbyLogin) {
+      // Simpan ke sessionStorage selama berada di /pengumuman & bersihkan localStorage
+      try {
+        sessionStorage.setItem('bps_temp_lobby_login_v1', JSON.stringify(parsed));
         localStorage.removeItem(PARTICIPANT_LOBBY_STORAGE_KEY);
         localStorage.removeItem(TERMS_ACCEPTED_STORAGE_KEY);
-        router.replace('/login');
-        return;
-      }
-
-      // Pastikan localStorage bersih bagi peserta yang sudah selesai semua tahap
-      localStorage.removeItem(PARTICIPANT_LOBBY_STORAGE_KEY);
-      localStorage.removeItem(TERMS_ACCEPTED_STORAGE_KEY);
+      } catch {}
 
       setStatusData(parsed);
       setLastCheckedTime(
@@ -150,6 +160,9 @@ export default function PengumumanPage() {
               resetRequestStatus: json.resetRequestStatus || 'NONE',
             };
             setStatusData(freshStatus);
+            try {
+              sessionStorage.setItem('bps_temp_lobby_login_v1', JSON.stringify(freshStatus));
+            } catch {}
           }
         })
         .catch(() => {});
@@ -220,9 +233,19 @@ export default function PengumumanPage() {
     }
 
     try {
-      const permission = await Notification.requestPermission();
+      const permission =
+        Notification.permission === 'granted'
+          ? 'granted'
+          : await Notification.requestPermission();
       setNotifPermission(permission);
       if (permission === 'granted') {
+        setIsNotifSubscribed(true);
+        try {
+          if (statusData?.emailPeserta) {
+            const subKey = `bps_notif_sub_${statusData.emailPeserta.trim().toLowerCase()}`;
+            localStorage.setItem(subKey, 'true');
+          }
+        } catch {}
         setNotifFeedback(
           'Notifikasi berhasil diaktifkan! Anda akan menerima pemberitahuan saat pengumuman kelulusan diperbarui oleh Admin.'
         );
@@ -234,7 +257,7 @@ export default function PengumumanPage() {
         } catch {}
       } else if (permission === 'denied') {
         setNotifFeedback(
-          'Izin notifikasi ditolak di browser Anda. Anda tetap dapat mengecek hasil kelulusan melalui tombol Masuk dengan Email.'
+          'Izin notifikasi diblokir di pengaturan browser Anda. Silakan klik ikon pengaturan/gembok di sebelah alamat URL browser lalu izinkan Notifications.'
         );
       }
     } catch {
@@ -269,8 +292,12 @@ export default function PengumumanPage() {
       Notification.permission === 'granted'
     ) {
       try {
-        const title = 'Pengumuman Hasil Seleksi BPS Kab. Soppeng';
-        const body = `Halo ${statusData.namaPeserta}, pengumuman hasil akhir Seleksi MagangHub BPS Kab. Soppeng telah tersedia.`;
+        const title = isLulus
+          ? 'Selamat! Anda Dinyatakan LULUS Seleksi BPS Soppeng'
+          : 'Pengumuman Hasil Seleksi BPS Kab. Soppeng';
+        const body = isLulus
+          ? `Selamat ${statusData.namaPeserta}! Anda dinyatakan LULUS (${rawKelulusan}) pada Seleksi MagangHub BPS Kab. Soppeng.`
+          : `Halo ${statusData.namaPeserta}, status hasil akhir seleksi Anda: ${rawKelulusan}.`;
         new Notification(title, {
           body,
           icon: '/BPSIndonesia.svg',
@@ -278,7 +305,7 @@ export default function PengumumanPage() {
         setHasNotifiedResult(true);
       } catch {}
     }
-  }, [statusData, hasKelulusanValue, hasNotifiedResult]);
+  }, [statusData, hasKelulusanValue, hasNotifiedResult, isLulus, rawKelulusan]);
 
   if (!statusData) {
     return null;
@@ -304,7 +331,19 @@ export default function PengumumanPage() {
       <div />
 
       <div className="max-w-2xl w-full mx-auto my-auto z-10 py-4">
-        <div className="bg-white border-2 border-slate-200/90 rounded-3xl shadow-xl shadow-slate-900/8 overflow-hidden">
+        <div className="bg-white border-2 border-slate-200/90 rounded-3xl shadow-xl shadow-slate-900/8 overflow-hidden animate-modal-pop relative">
+          {/* Partikel Confetti Selebrasi Saat Dinyatakan LULUS */}
+          {isLulus && (
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-48 overflow-hidden z-20">
+              <span className="absolute left-[10%] top-2 w-2.5 h-2.5 rounded-xs bg-[#00AEEF] animate-confetti-1" />
+              <span className="absolute left-[26%] top-0 w-2 h-3 rounded-xs bg-[#8CC63F] animate-confetti-2" />
+              <span className="absolute left-[46%] top-1 w-2.5 h-2.5 rounded-full bg-[#F7941D] animate-confetti-3" />
+              <span className="absolute left-[66%] top-0 w-2 h-3 rounded-xs bg-[#00AEEF] animate-confetti-2" />
+              <span className="absolute left-[82%] top-2 w-2.5 h-2.5 rounded-xs bg-[#8CC63F] animate-confetti-1" />
+              <span className="absolute left-[92%] top-1 w-2 h-2 rounded-full bg-[#F7941D] animate-confetti-3" />
+            </div>
+          )}
+
           {/* Top Strip 3 Warna BPS */}
           <div className="grid grid-cols-3 h-2 w-full overflow-hidden">
             <div className="bg-[#00AEEF]" />
@@ -502,21 +541,24 @@ export default function PengumumanPage() {
             {/* Konten Utama Berdasarkan Status Kelulusan */}
             {hasKelulusanValue ? (
               isLulus ? (
-                <div className="bg-[#F4FCEB] border-2 border-[#8CC63F] rounded-2xl p-5 md:p-6 space-y-4 shadow-sm">
+                <div className="bg-[#F4FCEB] border-2 border-[#8CC63F] rounded-2xl p-5 md:p-6 space-y-4 shadow-sm animate-modal-pop">
                   <div className="flex items-center gap-3.5">
-                    <div className="w-12 h-12 rounded-2xl bg-[#8CC63F] text-slate-950 flex items-center justify-center shadow-xs shrink-0">
-                      <svg
-                        className="w-6 h-6"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                        <polyline points="22 4 12 14.01 9 11.01" />
-                      </svg>
+                    <div className="relative w-12 h-12 shrink-0 flex items-center justify-center">
+                      <span className="absolute inset-0 rounded-2xl bg-[#8CC63F]/50 animate-ripple-ring" />
+                      <div className="relative w-12 h-12 rounded-2xl bg-[#8CC63F] text-slate-950 flex items-center justify-center shadow-xs animate-pop-in">
+                        <svg
+                          className="w-6 h-6"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.8"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                          <polyline className="animate-draw-check" points="22 4 12 14.01 9 11.01" />
+                        </svg>
+                      </div>
                     </div>
                     <div>
                       <h2 className="text-lg md:text-xl font-extrabold text-slate-900 leading-tight">
@@ -538,6 +580,46 @@ export default function PengumumanPage() {
                     <strong className="font-bold text-slate-900">LULUS ({rawKelulusan})</strong>{' '}
                     pada Seleksi MagangHub BPS Kabupaten Soppeng Batch III Angkatan 2 Tahun 2026.
                   </p>
+
+                  {/* Ajakan Bergabung Grup WhatsApp Peserta Lulus */}
+                  {WHATSAPP_GROUP_URL && (
+                    <div className="bg-white border-2 border-[#25D366]/60 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3.5 shadow-2xs">
+                      <span className="w-11 h-11 rounded-xl bg-[#25D366] text-white flex items-center justify-center shrink-0">
+                        <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                          <path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.61-.92-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.21 3.08c.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.69.63.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2.01-1.41.25-.69.25-1.29.17-1.41-.07-.12-.27-.2-.57-.35zM12.05 21.5h-.01a9.4 9.4 0 0 1-4.79-1.31l-.34-.2-3.56.93.95-3.47-.22-.36a9.38 9.38 0 0 1-1.44-5c0-5.19 4.23-9.41 9.42-9.41 2.51 0 4.88.98 6.65 2.76a9.35 9.35 0 0 1 2.75 6.66c0 5.19-4.23 9.41-9.41 9.41zm8.01-17.42A11.27 11.27 0 0 0 12.05.75C5.8.75.72 5.83.72 12.08c0 2 .52 3.95 1.52 5.66L.62 23.25l5.65-1.48a11.3 11.3 0 0 0 5.78 1.47h.01c6.25 0 11.33-5.08 11.33-11.33 0-3.03-1.18-5.87-3.33-8.01z" />
+                        </svg>
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs md:text-sm font-extrabold text-slate-900">
+                          Wajib Bergabung ke Grup WhatsApp Peserta Lulus
+                        </p>
+                        <p className="text-[11px] md:text-xs text-slate-600 leading-relaxed mt-0.5">
+                          Informasi lanjutan, jadwal, dan koordinasi dengan Panitia BPS Kabupaten
+                          Soppeng akan disampaikan melalui grup ini.
+                        </p>
+                      </div>
+                      <a
+                        href={WHATSAPP_GROUP_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#1EBE5A] text-white font-bold uppercase tracking-wider text-xs py-3 px-4 rounded-xl shadow-sm hover:shadow transition-all shrink-0"
+                      >
+                        Gabung Grup
+                        <svg
+                          className="w-3.5 h-3.5"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M7 17 17 7" />
+                          <path d="M7 7h10v10" />
+                        </svg>
+                      </a>
+                    </div>
+                  )}
 
                   {/* Langkah Tindak Lanjut Melengkapi MagangHub Peserta Lulus */}
                   <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-2 shadow-2xs">
@@ -686,8 +768,8 @@ export default function PengumumanPage() {
                     </div>
                   </div>
 
-                  {notifPermission === 'granted' ? (
-                    <div className="w-full bg-[#8CC63F] text-slate-950 py-3 px-4 rounded-xl flex items-center justify-center gap-2 text-xs font-extrabold uppercase tracking-wider shadow-2xs">
+                  {notifPermission === 'granted' && isNotifSubscribed ? (
+                    <div className="w-full bg-[#8CC63F] text-slate-950 py-3 px-4 rounded-xl flex items-center justify-center gap-2 text-xs font-extrabold uppercase tracking-wider shadow-2xs animate-pop-in">
                       <svg
                         className="w-4 h-4 shrink-0"
                         viewBox="0 0 24 24"
@@ -697,7 +779,7 @@ export default function PengumumanPage() {
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       >
-                        <polyline points="20 6 9 17 4 12" />
+                        <polyline className="animate-draw-check" points="20 6 9 17 4 12" />
                       </svg>
                       <span>Notifikasi Update Kelulusan Sudah Aktif</span>
                     </div>

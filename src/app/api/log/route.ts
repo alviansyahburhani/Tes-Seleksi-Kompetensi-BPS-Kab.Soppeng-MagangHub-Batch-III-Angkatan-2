@@ -16,12 +16,20 @@ export async function POST(request: Request) {
       emailPeserta,
       posisiDilamar,
       jenisPelanggaran,
+      tahap,
     } = await request.json();
 
     const waktu = new Date().toLocaleString('id-ID', {
       timeZone: 'Asia/Jakarta',
     });
 
+    // Tahap 'detail' = log diperkaya (durasi keluar, nomor soal, aktivitas Paste) yang dikirim saat peserta kembali.
+    // Hanya dicatat ke sheet, karena hitungan & alarm sudah diproses pada tahap 'mulai'.
+    const isDetail = tahap === 'detail';
+    // Tanpa 'tahap' (klien lama) -> perilaku lama: hitung, alarm, dan catat ke sheet sekaligus
+    const isMulai = tahap === 'mulai';
+
+    if (!isDetail) {
     // 1. Tambah hitungan pelanggaran di memori server (Anti-Tampering agar peserta tidak bisa reset ke 0 via Inspect Element)
     incrementServerViolation(emailPeserta, murniNama || namaPeserta);
 
@@ -33,6 +41,11 @@ export async function POST(request: Request) {
       jenisPelanggaran: (jenisPelanggaran || 'Pindah Tab').toString().trim(),
       waktu,
     });
+    }
+
+    if (isMulai) {
+      return NextResponse.json({ success: true });
+    }
 
     // 3. Catat ke sheet Log_Pelanggaran di Google Spreadsheet dengan mode RAW + Sanitizer (Anti-Formula Injection)
     const { sheets, spreadsheetId } = await getGoogleSheetsInstance();

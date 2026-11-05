@@ -39,11 +39,13 @@ export default function LoginPage() {
         }
       }
 
+      sessionStorage.removeItem('bps_temp_lobby_login_v1');
+
       const savedLobby = localStorage.getItem(PARTICIPANT_LOBBY_STORAGE_KEY);
       if (savedLobby) {
         const parsedLobby: ParticipantLobbyStatus = JSON.parse(savedLobby);
         const isAlreadyCompletedAll =
-          Boolean(parsedLobby?.kompetensiSelesai && parsedLobby?.wawancaraApproved) ||
+          Boolean(parsedLobby?.kompetensiSelesai) ||
           Boolean(parsedLobby?.statusKelulusan && parsedLobby.statusKelulusan.trim().length > 0);
 
         if (isAlreadyCompletedAll) {
@@ -120,8 +122,14 @@ export default function LoginPage() {
     }
   };
 
-  // TAHAP 1.B: MASUK CEPAT DENGAN EMAIL BAGI PESERTA YANG SUDAH ABSEN
-  const handleQuickLogin = async (emailInput: string): Promise<boolean> => {
+  // TAHAP 1.B: CEK EMAIL SATU PINTU (APAKAH TERDAFTAR & APAKAH BIODATA SUDAH LENGKAP)
+  const handleQuickLogin = async (
+    emailInput: string
+  ): Promise<{
+    found: boolean;
+    isProfileComplete: boolean;
+    redirectUrl?: string;
+  }> => {
     setLoginError('');
     setRegistering(true);
 
@@ -137,50 +145,69 @@ export default function LoginPage() {
       const json = await res.json();
 
       if (!res.ok || !json.success) {
-        setLoginError(json.error || 'Email belum terdaftar dalam daftar hadir.');
-        return false;
+        setLoginError(
+          json.error || 'Email tidak terdaftar dalam daftar panggilan peserta seleksi.'
+        );
+        return { found: false, isProfileComplete: false };
       }
 
-      const statusPayload: ParticipantLobbyStatus = {
-        rowNumber: json.rowNumber,
-        namaPeserta: json.namaPeserta,
-        emailPeserta: json.emailPeserta,
-        teleponPeserta: json.teleponPeserta || '',
-        posisiDilamar: json.posisiDilamar,
-        alamatPeserta: json.alamatPeserta,
-        statusUjian: json.statusUjian || '',
-        statusWawancara: json.statusWawancara || '',
-        statusKelulusan: json.statusKelulusan || '',
-        kompetensiApproved: Boolean(json.kompetensiApproved),
-        kompetensiSelesai: Boolean(json.kompetensiSelesai),
-        sedangUjian: Boolean(json.sedangUjian),
-        wawancaraApproved: Boolean(json.wawancaraApproved),
+      const isProfileComplete = Boolean(json.isProfileComplete);
+
+      // Isi state dengan data yang sudah ada di baris spreadsheet tersebut
+      setEmailPeserta(json.emailPeserta || emailInput.trim());
+      if (json.namaPeserta) setNamaPeserta(json.namaPeserta);
+      if (json.teleponPeserta) setTeleponPeserta(json.teleponPeserta);
+      if (json.posisiDilamar) setPosisiDilamar(json.posisiDilamar);
+      if (json.alamatPeserta) setAlamatPeserta(json.alamatPeserta);
+
+      // Jika sudah pernah mengisi biodata lengkap, siapkan sesi untuk langsung masuk ke Lobby / Pengumuman
+      if (isProfileComplete) {
+        const statusPayload: ParticipantLobbyStatus = {
+          rowNumber: json.rowNumber,
+          namaPeserta: json.namaPeserta,
+          emailPeserta: json.emailPeserta,
+          teleponPeserta: json.teleponPeserta || '',
+          posisiDilamar: json.posisiDilamar,
+          alamatPeserta: json.alamatPeserta,
+          statusUjian: json.statusUjian || '',
+          statusWawancara: json.statusWawancara || '',
+          statusKelulusan: json.statusKelulusan || '',
+          kompetensiApproved: Boolean(json.kompetensiApproved),
+          kompetensiSelesai: Boolean(json.kompetensiSelesai),
+          sedangUjian: Boolean(json.sedangUjian),
+          wawancaraApproved: Boolean(json.wawancaraApproved),
+        };
+
+        const isDone =
+          (statusPayload.kompetensiSelesai && statusPayload.wawancaraApproved) ||
+          Boolean(statusPayload.statusKelulusan && statusPayload.statusKelulusan.trim());
+
+        try {
+          sessionStorage.setItem('bps_temp_lobby_login_v1', JSON.stringify(statusPayload));
+          if (isDone) {
+            localStorage.removeItem(PARTICIPANT_LOBBY_STORAGE_KEY);
+            localStorage.removeItem(TERMS_ACCEPTED_STORAGE_KEY);
+          } else {
+            localStorage.setItem(PARTICIPANT_LOBBY_STORAGE_KEY, JSON.stringify(statusPayload));
+            localStorage.setItem(TERMS_ACCEPTED_STORAGE_KEY, 'true');
+          }
+        } catch {}
+
+        return {
+          found: true,
+          isProfileComplete: true,
+          redirectUrl: isDone ? '/pengumuman' : '/lobby',
+        };
+      }
+
+      // Jika email terdaftar tetapi belum pernah mengisi data diri lengkap
+      return {
+        found: true,
+        isProfileComplete: false,
       };
-
-      const isDone =
-        (statusPayload.kompetensiSelesai && statusPayload.wawancaraApproved) ||
-        Boolean(statusPayload.statusKelulusan && statusPayload.statusKelulusan.trim());
-
-      try {
-        sessionStorage.setItem('bps_temp_lobby_login_v1', JSON.stringify(statusPayload));
-        if (isDone) {
-          localStorage.removeItem(PARTICIPANT_LOBBY_STORAGE_KEY);
-          localStorage.removeItem(TERMS_ACCEPTED_STORAGE_KEY);
-        } else {
-          localStorage.setItem(PARTICIPANT_LOBBY_STORAGE_KEY, JSON.stringify(statusPayload));
-          localStorage.setItem(TERMS_ACCEPTED_STORAGE_KEY, 'true');
-        }
-      } catch {}
-
-      if (isDone) {
-        router.push('/pengumuman');
-      } else {
-        router.push('/lobby');
-      }
-      return true;
     } catch {
       setLoginError('Gagal menghubungi server. Periksa koneksi internet Anda.');
-      return false;
+      return { found: false, isProfileComplete: false };
     } finally {
       setRegistering(false);
     }
@@ -207,6 +234,7 @@ export default function LoginPage() {
       registering={registering}
       onConfirmRegister={handleConfirmRegister}
       onQuickLogin={handleQuickLogin}
+      onNavigate={(url) => router.push(url)}
       onCompleteTerms={() => {
         try {
           localStorage.setItem(TERMS_ACCEPTED_STORAGE_KEY, 'true');

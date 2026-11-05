@@ -24,6 +24,7 @@ export default function FinishedView({
   onBackToLobby,
 }: FinishedViewProps) {
   const [notifPermission, setNotifPermission] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('default');
+  const [isNotifSubscribed, setIsNotifSubscribed] = useState(false);
   const [notifFeedback, setNotifFeedback] = useState('');
 
   useEffect(() => {
@@ -32,7 +33,13 @@ export default function FinishedView({
       return;
     }
     setNotifPermission(Notification.permission);
-  }, []);
+    try {
+      const subKey = `bps_notif_sub_${(emailPeserta || '').trim().toLowerCase()}`;
+      if (Notification.permission === 'granted' && localStorage.getItem(subKey) === 'true') {
+        setIsNotifSubscribed(true);
+      }
+    } catch {}
+  }, [emailPeserta]);
 
   const handleRequestNotif = async () => {
     setNotifFeedback('');
@@ -42,9 +49,17 @@ export default function FinishedView({
       return;
     }
     try {
-      const perm = await Notification.requestPermission();
+      const perm =
+        Notification.permission === 'granted'
+          ? 'granted'
+          : await Notification.requestPermission();
       setNotifPermission(perm);
       if (perm === 'granted') {
+        setIsNotifSubscribed(true);
+        try {
+          const subKey = `bps_notif_sub_${(emailPeserta || '').trim().toLowerCase()}`;
+          localStorage.setItem(subKey, 'true');
+        } catch {}
         setNotifFeedback('Notifikasi aktif! Anda akan diberitahu saat pengumuman kelulusan keluar.');
         try {
           new Notification('Notifikasi Pengumuman BPS Soppeng Aktif', {
@@ -53,7 +68,9 @@ export default function FinishedView({
           });
         } catch {}
       } else if (perm === 'denied') {
-        setNotifFeedback('Izin notifikasi ditolak pada pengaturan browser Anda.');
+        setNotifFeedback(
+          'Izin notifikasi diblokir pada browser Anda. Silakan klik ikon pengaturan di sebelah alamat URL browser lalu izinkan Notifications.'
+        );
       }
     } catch {
       setNotifFeedback('Gagal mengaktifkan izin notifikasi.');
@@ -78,25 +95,44 @@ export default function FinishedView({
       upperKelulusan.includes('PASS'));
 
   return (
-    <main className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl border-2 border-slate-200/90 shadow-xl max-w-lg w-full overflow-hidden">
+    <main className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="bg-white rounded-3xl border-2 border-slate-200/90 shadow-xl max-w-lg w-full overflow-hidden animate-modal-pop relative">
+        {/* Partikel Confetti Selebrasi Ringan */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-40 overflow-hidden z-0">
+          <span className="absolute left-[12%] top-2 w-2.5 h-2.5 rounded-xs bg-[#00AEEF] animate-confetti-1" />
+          <span className="absolute left-[28%] top-0 w-2 h-3 rounded-xs bg-[#8CC63F] animate-confetti-2" />
+          <span className="absolute left-[48%] top-1 w-2.5 h-2.5 rounded-full bg-[#F7941D] animate-confetti-3" />
+          <span className="absolute left-[68%] top-0 w-2 h-3 rounded-xs bg-[#00AEEF] animate-confetti-2" />
+          <span className="absolute left-[84%] top-2 w-2.5 h-2.5 rounded-xs bg-[#8CC63F] animate-confetti-1" />
+        </div>
+
         {/* Header Strip BPS */}
-        <div className="grid grid-cols-3 h-2 w-full">
+        <div className="grid grid-cols-3 h-2 w-full relative z-10">
           <div className="bg-[#00AEEF]" />
           <div className="bg-[#8CC63F]" />
           <div className="bg-[#F7941D]" />
         </div>
 
-        <div className="p-6 md:p-8 text-center">
-          <div className="w-16 h-16 mx-auto mb-3.5 bg-slate-50 border border-slate-200 rounded-2xl p-2.5 shadow-xs flex items-center justify-center">
-            <img
-              src="/BPSIndonesia.svg"
-              alt="Logo BPS Indonesia"
-              className="w-full h-full object-contain"
-            />
+        <div className="p-6 md:p-8 text-center relative z-10">
+          {/* Ikon Ceklis Bulat Bersinar + Ripple */}
+          <div className="relative inline-flex items-center justify-center w-16 h-16 mx-auto mb-4">
+            <span className="absolute inset-0 rounded-full bg-[#8CC63F]/55 animate-ripple-ring" />
+            <div className="relative w-16 h-16 bg-[#8CC63F] text-slate-950 rounded-full shadow-lg shadow-[#8CC63F]/30 ring-4 ring-[#8CC63F]/25 flex items-center justify-center animate-pop-in">
+              <svg
+                className="w-8 h-8"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline className="animate-draw-check" points="20 6 9 17 4 12" />
+              </svg>
+            </div>
           </div>
 
-          <div className="inline-flex items-center gap-1.5 bg-[#8CC63F] text-slate-950 px-3.5 py-1 rounded-full font-extrabold text-[11px] uppercase tracking-wider shadow-2xs mb-3">
+          <div className="inline-flex items-center gap-1.5 bg-[#8CC63F]/20 text-[#3F6212] border border-[#8CC63F]/40 px-3.5 py-1 rounded-full font-extrabold text-[11px] uppercase tracking-wider shadow-2xs mb-3 animate-pop-in">
             <svg
               className="w-3.5 h-3.5"
               viewBox="0 0 24 24"
@@ -106,7 +142,7 @@ export default function FinishedView({
               strokeLinecap="round"
               strokeLinejoin="round"
             >
-              <polyline points="20 6 9 17 4 12" />
+              <polyline className="animate-draw-check" points="20 6 9 17 4 12" />
             </svg>
             <span>Jawaban Berhasil Disimpan</span>
           </div>
@@ -218,6 +254,113 @@ export default function FinishedView({
               </div>
             </div>
           </div>
+
+          {/* Box Hasil Kelulusan atau Aktivasi Notifikasi Pengumuman Kelulusan */}
+          {hasKelulusanValue ? (
+            <div
+              className={`rounded-2xl border-2 p-4 text-left space-y-2 mb-6 ${
+                isLulus
+                  ? 'bg-[#F4FCEB] border-[#8CC63F]'
+                  : isTidakLulus
+                    ? 'bg-amber-50 border-[#F7941D]'
+                    : 'bg-[#F0F9FF] border-[#00AEEF]/45'
+              }`}
+            >
+              <span
+                className={`inline-block text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
+                  isLulus
+                    ? 'bg-[#8CC63F] text-slate-950'
+                    : isTidakLulus
+                      ? 'bg-[#F7941D] text-slate-950'
+                      : 'bg-[#00AEEF] text-white'
+                }`}
+              >
+                Status Akhir: {rawKelulusan.toUpperCase()}
+              </span>
+              <p className="text-sm font-extrabold text-slate-900">
+                {isLulus
+                  ? 'Selamat! Anda Dinyatakan LULUS Seleksi'
+                  : isTidakLulus
+                    ? `Pemberitahuan Hasil Seleksi: ${rawKelulusan}`
+                    : `Informasi Hasil Akhir: ${rawKelulusan}`}
+              </p>
+              <p className="text-xs text-slate-700 leading-relaxed">
+                {isLulus
+                  ? 'Silakan klik tombol di bawah untuk melihat instruksi lengkap kelengkapan MagangHub Anda.'
+                  : 'Terima kasih atas partisipasi Anda pada Seleksi MagangHub BPS Kabupaten Soppeng Batch III.'}
+              </p>
+            </div>
+          ) : (
+            <div className="bg-slate-50 border-2 border-slate-200/90 rounded-2xl p-4 text-left space-y-3 mb-6">
+              <div className="flex items-start gap-3">
+                <span className="w-9 h-9 rounded-xl bg-[#00AEEF]/15 text-[#0284C7] flex items-center justify-center shrink-0 mt-0.5">
+                  <svg
+                    className="w-4 h-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                  </svg>
+                </span>
+                <div>
+                  <p className="text-xs font-extrabold uppercase tracking-wider text-slate-900">
+                    Notifikasi Pengumuman Kelulusan
+                  </p>
+                  <p className="text-xs text-slate-600 leading-relaxed mt-0.5">
+                    Aktifkan notifikasi browser agar Anda langsung mendapat pemberitahuan saat hasil akhir kelulusan diumumkan oleh Panitia.
+                  </p>
+                </div>
+              </div>
+
+              {notifPermission === 'granted' && isNotifSubscribed ? (
+                <div className="w-full bg-[#8CC63F]/20 border border-[#8CC63F]/40 py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 text-xs font-extrabold uppercase tracking-wider text-[#3F6212] animate-pop-in">
+                  <svg
+                    className="w-4 h-4 shrink-0"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <polyline className="animate-draw-check" points="20 6 9 17 4 12" />
+                  </svg>
+                  <span>Notifikasi Pengumuman Sudah Aktif</span>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleRequestNotif}
+                  className="w-full bg-[#F7941D] hover:bg-[#E08312] text-slate-950 font-bold uppercase tracking-wider text-xs py-3 px-4 rounded-xl shadow-2xs hover:shadow transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <svg
+                    className="w-4 h-4 shrink-0"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                  </svg>
+                  <span>Aktifkan Notifikasi Pengumuman Kelulusan</span>
+                </button>
+              )}
+
+              {notifFeedback && (
+                <div className="bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-medium text-slate-700">
+                  {notifFeedback}
+                </div>
+              )}
+            </div>
+          )}
 
           <button
             type="button"

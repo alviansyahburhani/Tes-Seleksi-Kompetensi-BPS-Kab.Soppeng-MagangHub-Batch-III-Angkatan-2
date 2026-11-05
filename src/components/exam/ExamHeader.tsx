@@ -30,7 +30,7 @@ export default function ExamHeader({
 
       {/* HEADER UJIAN & TIMER */}
       <header className="bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs sticky top-1.5 z-30 px-4 md:px-8 py-3">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+        <div className="max-w-[1440px] mx-auto flex flex-wrap items-center justify-between gap-4">
           {/* Identitas Kiri */}
           <div className="flex items-center gap-3.5 min-w-0">
             <div className="w-11 h-11 bg-slate-50 border border-slate-200 rounded-xl p-1.5 shadow-2xs flex items-center justify-center shrink-0">
