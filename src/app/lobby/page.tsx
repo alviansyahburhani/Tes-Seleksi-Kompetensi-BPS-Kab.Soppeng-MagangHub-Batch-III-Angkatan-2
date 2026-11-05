@@ -40,12 +40,9 @@ export default function LobbyPage() {
         }
       }
 
-      // Cek data Lobby dari sessionStorage (login cepat peserta selesai semua tahap) atau localStorage
+      // Cek data Lobby dari sessionStorage atau localStorage
       const tempLobbyLogin = sessionStorage.getItem('bps_temp_lobby_login_v1');
       const savedLobby = tempLobbyLogin || localStorage.getItem(PARTICIPANT_LOBBY_STORAGE_KEY);
-      if (tempLobbyLogin) {
-        sessionStorage.removeItem('bps_temp_lobby_login_v1');
-      }
 
       const termsAccepted =
         Boolean(tempLobbyLogin) || localStorage.getItem(TERMS_ACCEPTED_STORAGE_KEY) === 'true';
@@ -61,20 +58,14 @@ export default function LobbyPage() {
         Boolean(parsedLobby?.kompetensiSelesai && parsedLobby?.wawancaraApproved) ||
         Boolean(parsedLobby?.statusKelulusan && parsedLobby.statusKelulusan.trim().length > 0);
 
-      // Jika datang dari sessionStorage dan sudah selesai semua tahap, arahkan ke /pengumuman
-      if (isAlreadyCompletedAll && tempLobbyLogin) {
-        sessionStorage.setItem('bps_temp_lobby_login_v1', JSON.stringify(parsedLobby));
-        localStorage.removeItem(PARTICIPANT_LOBBY_STORAGE_KEY);
-        localStorage.removeItem(TERMS_ACCEPTED_STORAGE_KEY);
+      // Jika sudah selesai semua tahap atau sudah ada status kelulusan, arahkan ke /pengumuman
+      if (isAlreadyCompletedAll) {
+        try {
+          sessionStorage.setItem('bps_temp_lobby_login_v1', JSON.stringify(parsedLobby));
+          localStorage.removeItem(PARTICIPANT_LOBBY_STORAGE_KEY);
+          localStorage.removeItem(TERMS_ACCEPTED_STORAGE_KEY);
+        } catch {}
         router.replace('/pengumuman');
-        return;
-      }
-
-      // Jika datang dari localStorage biasa dan sudah selesai kedua tahap, wajib login ulang via /login
-      if (isAlreadyCompletedAll && !tempLobbyLogin) {
-        localStorage.removeItem(PARTICIPANT_LOBBY_STORAGE_KEY);
-        localStorage.removeItem(TERMS_ACCEPTED_STORAGE_KEY);
-        router.replace('/login');
         return;
       }
 
@@ -350,8 +341,11 @@ export default function LobbyPage() {
       onRefreshStatus={handleRefreshLobbyStatus}
       onStartCompetencyExam={handleStartCompetencyExam}
       onLogoutIdentity={() => {
-        localStorage.removeItem(PARTICIPANT_LOBBY_STORAGE_KEY);
-        localStorage.removeItem(TERMS_ACCEPTED_STORAGE_KEY);
+        try {
+          sessionStorage.removeItem('bps_temp_lobby_login_v1');
+          localStorage.removeItem(PARTICIPANT_LOBBY_STORAGE_KEY);
+          localStorage.removeItem(TERMS_ACCEPTED_STORAGE_KEY);
+        } catch {}
         setLobbyStatus(null);
         setLobbyError('');
         router.replace('/login');

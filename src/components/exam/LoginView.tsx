@@ -3,6 +3,12 @@
 import React, { useState } from 'react';
 import { POSISI_OPTIONS } from '@/constants/exam';
 
+interface QuickLoginResult {
+  found: boolean;
+  isProfileComplete: boolean;
+  redirectUrl?: string;
+}
+
 interface LoginViewProps {
   namaPeserta: string;
   setNamaPeserta: (val: string) => void;
@@ -18,7 +24,8 @@ interface LoginViewProps {
   setLoginError: (val: string) => void;
   registering: boolean;
   onConfirmRegister: () => Promise<boolean>;
-  onQuickLogin?: (email: string) => Promise<boolean>;
+  onQuickLogin?: (email: string) => Promise<QuickLoginResult>;
+  onNavigate?: (url: string) => void;
   onCompleteTerms: () => void;
 }
 
@@ -38,12 +45,16 @@ export default function LoginView({
   registering,
   onConfirmRegister,
   onQuickLogin,
+  onNavigate,
   onCompleteTerms,
 }: LoginViewProps) {
-  // Tab Mode: 'REGISTER' (Daftar Hadir Baru di Kanan, Panel Warna di Kiri)
-  // vs 'QUICK_LOGIN' (Masuk dengan Email di Kiri, Panel Warna Slide ke Kanan)
-  const [activeTab, setActiveTab] = useState<'REGISTER' | 'QUICK_LOGIN'>('REGISTER');
+  // Satu Pintu Login: Default diawali di 'QUICK_LOGIN' (Cek Email Terlebih Dahulu).
+  // Setelah email terverifikasi & belum pernah isi biodata, otomatis slide ke 'REGISTER'.
+  const [activeTab, setActiveTab] = useState<'REGISTER' | 'QUICK_LOGIN'>('QUICK_LOGIN');
   const [quickLoginEmail, setQuickLoginEmail] = useState('');
+  const [emailVerifiedState, setEmailVerifiedState] = useState<
+    'IDLE' | 'VERIFIED_INCOMPLETE' | 'VERIFIED_COMPLETE'
+  >('IDLE');
 
   // Pop-up 1: Pemberitahuan Konfirmasi Simpan Data Kehadiran
   const [showConfirmSaveModal, setShowConfirmSaveModal] = useState(false);
@@ -70,15 +81,33 @@ export default function LoginView({
 
   const handleQuickLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (emailVerifiedState !== 'IDLE') return;
     setLoginError('');
 
-    if (!quickLoginEmail.trim()) {
-      setLoginError('Silakan masukkan email aktif yang Anda gunakan saat login di HP.');
+    const trimmedEmail = quickLoginEmail.trim();
+    if (!trimmedEmail) {
+      setLoginError('Silakan masukkan alamat email Anda yang terdaftar di MagangHub.');
       return;
     }
 
     if (onQuickLogin) {
-      await onQuickLogin(quickLoginEmail.trim());
+      const result = await onQuickLogin(trimmedEmail);
+      if (result.found) {
+        if (result.isProfileComplete) {
+          setEmailVerifiedState('VERIFIED_COMPLETE');
+          setTimeout(() => {
+            if (onNavigate) {
+              onNavigate(result.redirectUrl || '/lobby');
+            }
+          }, 1600);
+        } else {
+          setEmailVerifiedState('VERIFIED_INCOMPLETE');
+          setTimeout(() => {
+            setActiveTab('REGISTER');
+            setEmailVerifiedState('IDLE');
+          }, 1600);
+        }
+      }
     }
   };
 
@@ -93,6 +122,7 @@ export default function LoginView({
   };
 
   const isQuickLogin = activeTab === 'QUICK_LOGIN';
+  const isVerifiedSuccess = emailVerifiedState !== 'IDLE';
 
   return (
     <main className="min-h-screen bg-slate-100/80 flex flex-col justify-between p-4 md:p-8 relative overflow-hidden">
@@ -106,7 +136,7 @@ export default function LoginView({
       {/* ===================================================================== */}
       {showConfirmSaveModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 overflow-y-auto flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full shadow-2xl overflow-hidden my-auto">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full shadow-2xl overflow-hidden my-auto animate-modal-pop">
             {/* Top Strip 3 Warna BPS */}
             <div className="grid grid-cols-3 h-1.5 w-full overflow-hidden">
               <div className="bg-[#00AEEF]" />
@@ -228,7 +258,7 @@ export default function LoginView({
       {/* ===================================================================== */}
       {showTermsModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 overflow-y-auto flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-modal-pop">
             {/* Top Strip 3 Warna BPS */}
             <div className="grid grid-cols-3 h-1.5 w-full shrink-0 overflow-hidden">
               <div className="bg-[#00AEEF]" />
@@ -375,44 +405,94 @@ export default function LoginView({
           {/* ================================================================= */}
           <div className="relative grid grid-cols-1 md:grid-cols-2 min-h-[560px]">
             {/* --------------------------------------------------------------- */}
-            {/* KOLOM KIRI: FORM MASUK DENGAN EMAIL (TERBUKA SAAT SLIDE KE KANAN) */}
+            {/* KOLOM KIRI: SATU PINTU VERIFIKASI EMAIL (TERBUKA SAAT DEFAULT)  */}
             {/* --------------------------------------------------------------- */}
             <div
-              className={`p-6 sm:p-8 md:p-10 flex flex-col justify-center transition-all duration-500 ${
-                isQuickLogin
-                  ? 'opacity-100 translate-x-0 z-10 block'
-                  : 'opacity-0 md:-translate-x-6 pointer-events-none hidden md:flex'
-              }`}
+              className={`p-6 sm:p-8 md:p-10 flex flex-col justify-center transition-all duration-500 ${isQuickLogin
+                ? 'opacity-100 translate-x-0 z-10 block'
+                : 'opacity-0 md:-translate-x-6 pointer-events-none hidden md:flex'
+                }`}
             >
               <div className="max-w-sm mx-auto w-full">
-                {/* Header Form Masuk */}
+                {/* Header Form Masuk / Ceklis Bulat Saat Terverifikasi */}
                 <div className="text-center mb-6">
-                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-[#00AEEF]/12 text-[#0284C7] mb-3">
-                    <svg
-                      className="w-6 h-6"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-                      <polyline points="10 17 15 12 10 7" />
-                      <line x1="15" y1="12" x2="3" y2="12" />
-                    </svg>
-                  </div>
+                  {isVerifiedSuccess ? (
+                    <div className="relative inline-flex items-center justify-center w-16 h-16 mb-3.5">
+                      <span className="absolute inset-0 rounded-full bg-[#8CC63F]/60 animate-ripple-ring" />
+                      <div className="relative inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#8CC63F] text-slate-950 shadow-lg shadow-[#8CC63F]/30 ring-4 ring-[#8CC63F]/25 animate-pop-in">
+                        <svg
+                          className="w-8 h-8"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="3.2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <polyline className="animate-draw-check" points="20 6 9 17 4 12" />
+                        </svg>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-[#00AEEF]/12 text-[#0284C7] mb-3 transition-transform duration-300 hover:scale-105">
+                      <svg
+                        className="w-6 h-6"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                        <polyline points="10 17 15 12 10 7" />
+                        <line x1="15" y1="12" x2="3" y2="12" />
+                      </svg>
+                    </div>
+                  )}
+
                   <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
-                    Masuk Seleksi
+                    {isVerifiedSuccess ? 'Email Terdaftar!' : 'Masuk Seleksi'}
                   </h2>
                   <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-                    Gunakan alamat email yang sudah Anda daftarkan saat mengisi daftar hadir sebelumnya
+                    {isVerifiedSuccess
+                      ? 'Anda terdaftar dalam panggilan mengikuti Ujian Seleksi MagangHub BPS Kab. Soppeng.'
+                      : 'Masukkan alamat email yang Anda daftarkan pada MagangHub untuk verifikasi panggilan seleksi'}
                   </p>
                 </div>
 
-                {/* Error Alert di Kolom Kiri */}
-                {loginError && isQuickLogin && (
-                  <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 mb-4 flex items-start gap-2.5 text-xs">
+                {/* Banner Sukses Ceklis Saat Email Ditemukan di Database */}
+                {isVerifiedSuccess && (
+                  <div className="bg-[#F4FCEB] border-2 border-[#8CC63F] text-slate-800 rounded-2xl p-3.5 mb-4 flex items-center gap-3 text-xs shadow-xs animate-modal-pop">
+                    <span className="w-7 h-7 rounded-full bg-[#8CC63F] text-slate-950 flex items-center justify-center shrink-0">
+                      <svg
+                        className="w-4 h-4"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <polyline className="animate-draw-check" points="20 6 9 17 4 12" />
+                      </svg>
+                    </span>
+                    <div className="leading-relaxed">
+                      <p className="font-bold text-slate-900">
+                        Panggilan Seleksi Terkonfirmasi
+                      </p>
+                      <p className="text-[11px] text-slate-600 font-medium">
+                        {emailVerifiedState === 'VERIFIED_COMPLETE'
+                          ? 'Data diri sudah lengkap. Mengarahkan Anda ke halaman Lobby...'
+                          : 'Mengarahkan ke pengisian kelengkapan data daftar hadir...'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Error Alert di Kolom Kiri (Dengan Animasi Shake) */}
+                {loginError && isQuickLogin && !isVerifiedSuccess && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 mb-4 flex items-start gap-2.5 text-xs animate-shake">
                     <svg
                       className="w-4 h-4 text-red-600 shrink-0 mt-0.5"
                       viewBox="0 0 24 24"
@@ -433,63 +513,109 @@ export default function LoginView({
                 <form onSubmit={handleQuickLoginSubmit} className="space-y-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      Email Terdaftar
+                      Email Peserta MagangHub
                     </label>
-                    <input
-                      type="email"
-                      required
-                      value={quickLoginEmail}
-                      onChange={(e) => setQuickLoginEmail(e.target.value)}
-                      placeholder="Masukkan email Anda..."
-                      className="w-full px-4 py-3 bg-slate-100/80 border border-slate-200/90 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-[#00AEEF] focus:ring-3 focus:ring-[#00AEEF]/15 transition-all"
-                    />
+                    <div className={`relative ${loginError && isQuickLogin && !isVerifiedSuccess ? 'animate-shake' : ''}`}>
+                      <input
+                        type="email"
+                        required
+                        disabled={registering || isVerifiedSuccess}
+                        value={quickLoginEmail}
+                        onChange={(e) => {
+                          setQuickLoginEmail(e.target.value);
+                          if (loginError) setLoginError('');
+                        }}
+                        placeholder="Masukkan email Anda..."
+                        className={`w-full px-4 py-3 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none transition-all ${
+                          isVerifiedSuccess
+                            ? 'bg-[#F4FCEB] border-2 border-[#8CC63F] pr-11 font-bold'
+                            : loginError && isQuickLogin
+                              ? 'bg-red-50/50 border-2 border-red-300 focus:bg-white focus:border-[#00AEEF]'
+                              : 'bg-slate-100/80 border border-slate-200/90 focus:bg-white focus:border-[#00AEEF] focus:ring-3 focus:ring-[#00AEEF]/15'
+                        }`}
+                      />
+                      {isVerifiedSuccess && (
+                        <span className="absolute right-3.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-[#8CC63F] text-slate-950 flex items-center justify-center shadow-2xs animate-pop-in">
+                          <svg
+                            className="w-3.5 h-3.5"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <polyline className="animate-draw-check" points="20 6 9 17 4 12" />
+                          </svg>
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="pt-2">
                     <button
                       type="submit"
-                      disabled={registering}
-                      className="w-full bg-[#00AEEF] hover:bg-[#0099D6] disabled:opacity-50 text-white font-bold uppercase tracking-wider text-xs py-3.5 px-6 rounded-xl shadow-sm hover:shadow transition-all cursor-pointer"
+                      disabled={registering || isVerifiedSuccess}
+                      className={`w-full font-bold uppercase tracking-wider text-xs py-3.5 px-6 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2.5 ${isVerifiedSuccess
+                        ? 'bg-[#8CC63F] text-slate-950 cursor-default'
+                        : 'bg-[#00AEEF] hover:bg-[#0099D6] disabled:opacity-60 text-white cursor-pointer hover:shadow'
+                        }`}
                     >
-                      {registering ? 'Menghubungkan...' : 'Masuk Sekarang'}
+                      {(registering || isVerifiedSuccess) && (
+                        <svg
+                          className="w-4 h-4 animate-spin shrink-0"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                        </svg>
+                      )}
+                      <span>
+                        {isVerifiedSuccess
+                          ? emailVerifiedState === 'VERIFIED_COMPLETE'
+                            ? 'Terverifikasi • Masuk ke Lobby...'
+                            : 'Terverifikasi • Membuka Daftar Hadir...'
+                          : registering
+                            ? 'Memeriksa Email...'
+                            : 'Cek & Masuk Seleksi'}
+                      </span>
                     </button>
                   </div>
                 </form>
-
-                {/* Tombol Switch untuk Layar Mobile */}
-                <div className="mt-6 pt-5 border-t border-slate-100 text-center md:hidden">
-                  <p className="text-xs text-slate-500 mb-2.5">
-                    Belum pernah mengisi daftar hadir?
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveTab('REGISTER');
-                      setLoginError('');
-                    }}
-                    className="w-full py-2.5 px-4 rounded-xl border-2 border-[#00AEEF] text-[#0284C7] font-bold text-xs uppercase tracking-wider hover:bg-[#00AEEF]/5 transition cursor-pointer"
-                  >
-                    Isi Daftar Hadir Baru
-                  </button>
-                </div>
               </div>
             </div>
 
             {/* --------------------------------------------------------------- */}
-            {/* KOLOM KANAN: FORM DAFTAR HADIR BARU (TERBUKA SAAT DEFAULT)       */}
+            {/* KOLOM KANAN: FORM KELENGKAPAN DATA DIRI (SETELAH EMAIL LOLOS)   */}
             {/* --------------------------------------------------------------- */}
             <div
-              className={`p-6 sm:p-8 md:p-10 flex flex-col justify-center transition-all duration-500 ${
-                !isQuickLogin
-                  ? 'opacity-100 translate-x-0 z-10 block'
-                  : 'opacity-0 md:translate-x-6 pointer-events-none hidden md:flex'
-              }`}
+              className={`p-6 sm:p-8 md:p-10 flex flex-col justify-center transition-all duration-500 ${!isQuickLogin
+                ? 'opacity-100 translate-x-0 z-10 block'
+                : 'opacity-0 md:translate-x-6 pointer-events-none hidden md:flex'
+                }`}
             >
               <div className="max-w-md mx-auto w-full">
                 {/* Header Form Daftar Hadir */}
                 <div className="text-center mb-5">
-                  <span className="inline-block bg-[#F7941D]/15 text-[#B45309] border border-[#F7941D]/30 rounded-full text-[10px] font-bold uppercase tracking-wider px-3 py-0.5 mb-2">
-                    Daftar Hadir Peserta
+                  <span className="inline-flex items-center gap-1.5 bg-[#8CC63F]/20 text-[#3F6212] border border-[#8CC63F]/40 rounded-full text-[10px] font-bold uppercase tracking-wider px-3 py-0.5 mb-2">
+                    <span className="w-3.5 h-3.5 rounded-full bg-[#8CC63F] text-slate-950 inline-flex items-center justify-center">
+                      <svg
+                        className="w-2.5 h-2.5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </span>
+                    Email Terdaftar • Lengkapi Biodata
                   </span>
                   <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
                     Isi Absensi Kehadiran
@@ -501,7 +627,7 @@ export default function LoginView({
 
                 {/* Error Alert di Kolom Kanan */}
                 {loginError && !isQuickLogin && (
-                  <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 mb-4 flex items-start gap-2.5 text-xs">
+                  <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 mb-4 flex items-start gap-2.5 text-xs animate-shake">
                     <svg
                       className="w-4 h-4 text-red-600 shrink-0 mt-0.5"
                       viewBox="0 0 24 24"
@@ -532,15 +658,28 @@ export default function LoginView({
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
+                    <div className="relative">
                       <input
                         type="email"
                         required
+                        readOnly
                         value={emailPeserta}
-                        onChange={(e) => setEmailPeserta(e.target.value)}
-                        placeholder="Email Aktif"
-                        className="w-full px-4 py-2.5 bg-slate-100/80 border border-slate-200/90 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-[#00AEEF] focus:ring-3 focus:ring-[#00AEEF]/15 transition-all"
+                        title="Email yang telah diverifikasi"
+                        className="w-full px-4 py-2.5 pr-9 bg-slate-200/70 border border-slate-300 rounded-xl text-sm font-semibold text-slate-700 cursor-not-allowed focus:outline-none"
                       />
+                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-[#8CC63F] text-slate-950 flex items-center justify-center">
+                        <svg
+                          className="w-3 h-3"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      </span>
                     </div>
                     <div>
                       <input
@@ -559,9 +698,8 @@ export default function LoginView({
                       required
                       value={posisiDilamar}
                       onChange={(e) => setPosisiDilamar(e.target.value)}
-                      className={`w-full px-4 py-2.5 bg-slate-100/80 border border-slate-200/90 rounded-xl text-sm font-medium focus:outline-none focus:bg-white focus:border-[#00AEEF] focus:ring-3 focus:ring-[#00AEEF]/15 transition-all cursor-pointer ${
-                        posisiDilamar ? 'text-slate-900' : 'text-slate-400'
-                      }`}
+                      className={`w-full px-4 py-2.5 bg-slate-100/80 border border-slate-200/90 rounded-xl text-sm font-medium focus:outline-none focus:bg-white focus:border-[#00AEEF] focus:ring-3 focus:ring-[#00AEEF]/15 transition-all cursor-pointer ${posisiDilamar ? 'text-slate-900' : 'text-slate-400'
+                        }`}
                     >
                       <option value="" disabled className="text-slate-400">
                         -- Pilih Posisi yang Dilamar --
@@ -596,20 +734,18 @@ export default function LoginView({
                   </div>
                 </form>
 
-                {/* Tombol Switch untuk Layar Mobile */}
+                {/* Tombol Ganti Email untuk Layar Mobile */}
                 <div className="mt-5 pt-4 border-t border-slate-100 text-center md:hidden">
-                  <p className="text-xs text-slate-500 mb-2">
-                    Sudah pernah mengisi daftar hadir di HP?
-                  </p>
                   <button
                     type="button"
                     onClick={() => {
                       setActiveTab('QUICK_LOGIN');
+                      setEmailVerifiedState('IDLE');
                       setLoginError('');
                     }}
-                    className="w-full py-2.5 px-4 rounded-xl bg-[#00AEEF] text-white font-bold text-xs uppercase tracking-wider shadow-xs transition cursor-pointer"
+                    className="w-full py-2.5 px-4 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-xs uppercase tracking-wider transition cursor-pointer"
                   >
-                    Masuk dengan Email
+                    Ganti Email Lain
                   </button>
                 </div>
               </div>
@@ -619,11 +755,10 @@ export default function LoginView({
             {/* SLIDING SOLID PANEL OVERLAY (BERGESER KIRI <-> KANAN)            */}
             {/* =============================================================== */}
             <div
-              className={`hidden md:flex flex-col justify-center items-center text-center p-10 absolute top-0 bottom-0 left-0 w-1/2 z-20 transition-all duration-700 ease-in-out overflow-hidden ${
-                isQuickLogin
-                  ? 'translate-x-full bg-[#8CC63F] text-slate-950 rounded-l-[36px]'
-                  : 'translate-x-0 bg-[#00AEEF] text-white rounded-r-[36px]'
-              }`}
+              className={`hidden md:flex flex-col justify-center items-center text-center p-10 absolute top-0 bottom-0 left-0 w-1/2 z-20 transition-all duration-700 ease-in-out overflow-hidden ${isQuickLogin
+                ? 'translate-x-full bg-[#00AEEF] text-white rounded-l-[36px]'
+                : 'translate-x-0 bg-[#8CC63F] text-slate-950 rounded-r-[36px]'
+                }`}
             >
               {/* Lingkaran Dekoratif Halus di Dalam Panel Warna */}
               <div className="pointer-events-none absolute -top-16 -left-16 w-48 h-48 rounded-full bg-white/10" />
@@ -639,56 +774,57 @@ export default function LoginView({
               </div>
 
               <span
-                className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-3 relative z-10 ${
-                  isQuickLogin
-                    ? 'bg-slate-950/12 text-slate-950'
-                    : 'bg-white/20 text-white'
-                }`}
+                className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-3 relative z-10 ${isQuickLogin
+                  ? 'bg-white/20 text-white'
+                  : 'bg-slate-950/12 text-slate-950'
+                  }`}
               >
                 BPS Kab. Soppeng • Batch III
               </span>
 
-              {!isQuickLogin ? (
-                /* Konten Panel Saat Berada di Kiri (Mengajak Masuk Jika Sudah Absen) */
+              {isQuickLogin ? (
+                /* Konten Panel Saat Berada di Kanan (Tahap 1: Verifikasi Email Satu Pintu) */
                 <div className="max-w-xs space-y-3 relative z-10">
-                  <h2 className="text-2xl font-bold tracking-tight leading-snug">
-                    Sudah Mengisi Daftar Hadir?
+                  <h2 className="text-2xl font-bold tracking-tight leading-snug text-white">
+                    Verifikasi Email MagangHub Anda
                   </h2>
                   <p className="text-xs leading-relaxed text-white/90 font-medium">
-                    Jika Anda sudah mengisi absensi di HP sebelumnya, silakan masuk menggunakan email Anda untuk melanjutkan seleksi.
+                    Hanya email peserta yang terdaftar pada panggilan seleksi BPS Kab. Soppeng yang dapat mengakses sistem daftar hadir dan ruang ujian.
+                  </p>
+                </div>
+              ) : (
+                /* Konten Panel Saat Bergeser ke Kiri (Tahap 2: Melengkapi Biodata Daftar Hadir) */
+                <div className="max-w-xs space-y-3 relative z-10">
+                  <div className="inline-flex items-center justify-center w-11 h-11 rounded-full bg-white text-[#3F6212] shadow-sm mb-1">
+                    <svg
+                      className="w-6 h-6"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </div>
+                  <h2 className="text-2xl font-bold tracking-tight leading-snug text-slate-950">
+                    Anda Terdaftar Mengikuti Seleksi!
+                  </h2>
+                  <p className="text-xs leading-relaxed text-slate-900/85 font-medium">
+                    Silakan lengkapi Nama Lengkap, Nomor WhatsApp, Posisi yang dilamar, serta Alamat Domisili Anda pada formulir di samping.
                   </p>
                   <div className="pt-3">
                     <button
                       type="button"
                       onClick={() => {
                         setActiveTab('QUICK_LOGIN');
+                        setEmailVerifiedState('IDLE');
                         setLoginError('');
                       }}
-                      className="px-8 py-3 rounded-xl border-2 border-white text-white hover:bg-white hover:text-[#00AEEF] font-bold text-xs uppercase tracking-wider transition-all duration-200 cursor-pointer"
+                      className="px-6 py-2.5 rounded-xl border-2 border-slate-950 text-slate-950 hover:bg-slate-950 hover:text-white font-bold text-xs uppercase tracking-wider transition-all duration-200 cursor-pointer"
                     >
-                      Masuk dengan Email
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                /* Konten Panel Saat Bergeser ke Kanan (Mengajak Isi Daftar Hadir Jika Belum Absen) */
-                <div className="max-w-xs space-y-3 relative z-10">
-                  <h2 className="text-2xl font-bold tracking-tight leading-snug text-slate-950">
-                    Belum Mengisi Daftar Hadir?
-                  </h2>
-                  <p className="text-xs leading-relaxed text-slate-900/85 font-medium">
-                    Bagi peserta yang baru hadir dan belum terdaftar, silakan isi formulir kehadiran terlebih dahulu.
-                  </p>
-                  <div className="pt-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveTab('REGISTER');
-                        setLoginError('');
-                      }}
-                      className="px-8 py-3 rounded-xl border-2 border-slate-950 text-slate-950 hover:bg-slate-950 hover:text-white font-bold text-xs uppercase tracking-wider transition-all duration-200 cursor-pointer"
-                    >
-                      Isi Daftar Hadir
+                      Ganti Email
                     </button>
                   </div>
                 </div>

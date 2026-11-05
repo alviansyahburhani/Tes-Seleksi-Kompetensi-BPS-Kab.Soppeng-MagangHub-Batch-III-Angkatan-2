@@ -92,8 +92,8 @@ export default function QuestionCard({
         </div>
       </div>
 
-      {/* Isi Pertanyaan */}
-      <div className="p-5 md:p-8 bg-slate-50/60">
+      {/* Isi Pertanyaan (Animasi Slide & Fade setiap berganti nomor soal) */}
+      <div key={activeSoal.id} className="p-5 md:p-8 bg-slate-50/60 animate-question-enter">
         {/* Kotak Pertanyaan Utama (Menonjol & Terpisah Tegas dari Pilihan Jawaban) */}
         <div className="bg-white rounded-2xl border-2 border-slate-200/90 shadow-sm overflow-hidden flex mb-7">
           <div className={`w-2 shrink-0 ${topBarColor}`} />
@@ -116,7 +116,7 @@ export default function QuestionCard({
                 <span>Pertanyaan Soal No. {currentIndex + 1}</span>
               </span>
               {Boolean(jawabanValue && jawabanValue.trim() !== '') ? (
-                <span className="inline-flex items-center gap-1 bg-[#8CC63F]/20 text-[#3F6212] border border-[#8CC63F]/40 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full">
+                <span className="inline-flex items-center gap-1 bg-[#8CC63F]/20 text-[#3F6212] border border-[#8CC63F]/40 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full animate-pop-in">
                   <svg
                     className="w-3 h-3"
                     viewBox="0 0 24 24"
@@ -126,7 +126,7 @@ export default function QuestionCard({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   >
-                    <polyline points="20 6 9 17 4 12" />
+                    <polyline className="animate-draw-check" points="20 6 9 17 4 12" />
                   </svg>
                   Sudah Dijawab
                 </span>
@@ -165,16 +165,18 @@ export default function QuestionCard({
                     key={optIdx}
                     type="button"
                     onClick={() => onSelectAnswer(activeSoal.id, huruf)}
-                    className={`w-full text-left px-4 py-3.5 rounded-2xl border-2 text-sm md:text-base flex items-center gap-3.5 transition-all cursor-pointer overflow-hidden ${isSelected
-                      ? 'bg-[#00AEEF] border-[#00AEEF] text-white font-bold shadow-md'
-                      : 'bg-white hover:bg-[#F0F9FF] border-slate-200/90 hover:border-[#00AEEF]/50 text-slate-800 font-semibold shadow-2xs'
-                      }`}
+                    className={`w-full text-left px-4 py-3.5 rounded-2xl border-2 text-sm md:text-base flex items-center gap-3.5 transition-all duration-200 cursor-pointer overflow-hidden active:scale-[0.985] ${
+                      isSelected
+                        ? 'bg-[#00AEEF] border-[#00AEEF] text-white font-bold shadow-md scale-[1.008]'
+                        : 'bg-white hover:bg-[#F0F9FF] hover:translate-x-1 border-slate-200/90 hover:border-[#00AEEF]/50 text-slate-800 font-semibold shadow-2xs'
+                    }`}
                   >
                     <span
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-extrabold shrink-0 transition-all ${isSelected
-                        ? 'bg-[#F7941D] text-slate-950 shadow-xs'
-                        : 'bg-slate-100 text-slate-700 border border-slate-200'
-                        }`}
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-extrabold shrink-0 transition-all duration-200 ${
+                        isSelected
+                          ? 'bg-[#F7941D] text-slate-950 shadow-xs scale-105'
+                          : 'bg-slate-100 text-slate-700 border border-slate-200'
+                      }`}
                     >
                       {huruf}
                     </span>
@@ -182,7 +184,7 @@ export default function QuestionCard({
                       {teksOpsi}
                     </span>
                     {isSelected && (
-                      <span className="bg-white text-[#0284C7] text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full shrink-0 flex items-center gap-1 shadow-2xs">
+                      <span className="bg-white text-[#0284C7] text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full shrink-0 flex items-center gap-1 shadow-2xs animate-pop-in">
                         <svg
                           className="w-3 h-3"
                           viewBox="0 0 24 24"
@@ -192,7 +194,7 @@ export default function QuestionCard({
                           strokeLinecap="round"
                           strokeLinejoin="round"
                         >
-                          <polyline points="20 6 9 17 4 12" />
+                          <polyline className="animate-draw-check" points="20 6 9 17 4 12" />
                         </svg>
                         Dipilih
                       </span>

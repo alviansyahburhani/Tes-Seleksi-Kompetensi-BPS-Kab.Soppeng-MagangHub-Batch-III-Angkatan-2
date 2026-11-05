@@ -50,7 +50,7 @@ export async function GET(request: Request) {
         const statusWawancara = (row?.[10] || '').toString().trim();
         const statusKelulusan = (row?.[11] || '').toString().trim();
 
-        if (!namaPeserta && !emailPeserta) return null;
+        if (!namaPeserta || !emailPeserta || !teleponPeserta || !posisiDilamar) return null;
 
         // Parse "5 / 20 Soal" menjadi angka terjawab & totalSoal
         const matchProgress = progressStr.match(/(\d+)\s*\/\s*(\d+)/);

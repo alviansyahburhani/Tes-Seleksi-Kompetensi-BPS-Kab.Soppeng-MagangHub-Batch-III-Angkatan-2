@@ -71,8 +71,8 @@ async function createMonitoringSheetIfMissing(sheets: any, spreadsheetId: string
 }
 
 /**
- * Helper: Mengekstrak Status Kelulusan secara dinamis dari Kolom K / L / M
- * (Mendukung baris lama sebelum penambahan No. Telepon maupun baris baru, serta segala variasi teks kelulusan)
+ * Helper: Mengekstrak Status Kelulusan secara dinamis dari Kolom K / L / M / dst
+ * (Mendukung penempatan kolom dinamis di mana pun Admin menuliskan Lulus / Tidak Lulus / Lolos / Diterima / Gagal)
  */
 function extractStatusKelulusan(row: any[]): string {
   // 1. Cek Kolom L (index 11) dan Kolom M (index 12) terlebih dahulu (kolom khusus Status Kelulusan)
@@ -91,6 +91,27 @@ function extractStatusKelulusan(row: any[]): string {
     const isWawancaraText = upperK.includes('WAWANCARA');
     if (!isWawancaraText) {
       return colK;
+    }
+  }
+
+  // 3. Fallback: Cek mulai dari Kolom J (index 9) sampai ujung kanan baris jika ada kata kunci kelulusan eksplisit
+  if (Array.isArray(row)) {
+    for (let c = 9; c < row.length; c++) {
+      const cellVal = (row[c] || '').toString().trim();
+      if (!cellVal) continue;
+      const upper = cellVal.toUpperCase();
+      if (upper.includes('WAWANCARA') || upper.includes('MENGERJAKAN') || upper.includes('SELESAI (')) {
+        continue;
+      }
+      if (
+        upper.includes('LULUS') ||
+        upper.includes('LOLOS') ||
+        upper.includes('DITERIMA') ||
+        upper.includes('GAGAL') ||
+        upper.includes('DITOLAK')
+      ) {
+        return cellVal;
+      }
     }
   }
 
@@ -302,14 +323,14 @@ export async function POST(request: Request) {
     }
 
     // =========================================================================
-    // MODE 0: QUICK_LOGIN (MASUK CEPAT MENGGUNAKAN EMAIL YANG TERDAFTAR DI HP)
+    // MODE 0: QUICK_LOGIN / CEK SATU PINTU EMAIL
     // =========================================================================
     if (action === 'QUICK_LOGIN') {
       if (foundIndex === -1) {
         return NextResponse.json(
           {
             success: false,
-            error: `Email "${emailPeserta}" belum terdaftar dalam Daftar Hadir. Pastikan Anda memasukkan email yang sama persis seperti saat absen di HP, atau silakan isi formulir pada tab "Daftar Hadir Baru".`,
+            error: `Email "${emailPeserta}" tidak terdaftar dalam daftar panggilan peserta seleksi Maganghub Batch III Angkata 2 BPS Kab. Soppeng. Pastikan Anda memasukkan email yang terdaftar di MagangHub.`,
           },
           { status: 404 }
         );
@@ -324,6 +345,9 @@ export async function POST(request: Request) {
       const rAlamat = (existingRow[4] || '').toString().trim();
       const { statusUjian, statusWawancara } = extractStatusUjianDanWawancara(existingRow);
       const statusKelulusan = extractStatusKelulusan(existingRow);
+
+      // Cek apakah peserta sudah melengkapi seluruh biodata wajib (Nama, No. Telepon, Posisi, Alamat)
+      const isProfileComplete = Boolean(rNama && rTelepon && rPosisi && rAlamat);
 
       const upperUjian = statusUjian.toUpperCase();
       const upperWawancara = statusWawancara.toUpperCase();
@@ -344,6 +368,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         success: true,
         isExisting: true,
+        isProfileComplete,
         rowNumber: existingRowNumber,
         namaPeserta: rNama,
         emailPeserta: rEmail,
@@ -361,58 +386,20 @@ export async function POST(request: Request) {
     }
 
     // =========================================================================
-    // MODE 1: REGISTER (DAFTAR HADIR PESERTA)
+    // MODE 1: REGISTER (MELENGKAPI BIODATA DAFTAR HADIR BAGI EMAIL TERDAFTAR)
     // =========================================================================
     if (action === 'REGISTER') {
-      // Jika sudah pernah mengisi daftar hadir sebelumnya, pulihkan statusnya dari Monitoring_Peserta
-      if (foundIndex !== -1) {
-        const existingRow = existingRows[foundIndex];
-        const existingRowNumber = foundIndex + 2;
-        const rNama = (existingRow[0] || namaPeserta).toString().trim();
-        const rEmail = (existingRow[1] || emailPeserta).toString().trim();
-        const rTelepon = (existingRow[2] || teleponPeserta || '').toString().trim();
-        const rPosisi = (existingRow[3] || posisiDilamar).toString().trim();
-        const rAlamat = (existingRow[4] || alamatPeserta).toString().trim();
-        const { statusUjian, statusWawancara } = extractStatusUjianDanWawancara(existingRow);
-        const statusKelulusan = extractStatusKelulusan(existingRow);
-
-        const upperUjian = statusUjian.toUpperCase();
-        const upperWawancara = statusWawancara.toUpperCase();
-
-        const kompetensiSelesai = upperUjian.includes('SELESAI');
-        const sedangUjian = upperUjian.includes('SEDANG');
-        const wawancaraApproved =
-          upperWawancara.includes('SUDAH') ||
-          upperWawancara.includes('SELESAI') ||
-          upperWawancara.includes('APPROVED');
-        const kompetensiApproved = isKompetensiApproved(
-          existingRowNumber,
-          rEmail,
-          rNama,
-          statusUjian
+      // Hanya email yang sudah ada di database (Kolom B Monitoring_Peserta) yang boleh melengkapi daftar hadir
+      if (foundIndex === -1) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Email "${emailPeserta}" tidak terdaftar dalam database peserta seleksi BPS Kab. Soppeng.`,
+          },
+          { status: 403 }
         );
-
-        return NextResponse.json({
-          success: true,
-          isExisting: true,
-          rowNumber: existingRowNumber,
-          namaPeserta: rNama,
-          emailPeserta: rEmail,
-          teleponPeserta: rTelepon,
-          posisiDilamar: rPosisi,
-          alamatPeserta: rAlamat,
-          statusUjian,
-          statusWawancara,
-          statusKelulusan,
-          kompetensiApproved,
-          kompetensiSelesai,
-          sedangUjian,
-          wawancaraApproved,
-        });
       }
 
-      // Jika belum pernah daftar hadir:
-      // Validasi bahwa posisi formasi telah dipilih oleh peserta
       if (!posisiDilamar || !posisiDilamar.trim()) {
         return NextResponse.json(
           { success: false, error: 'Silakan pilih posisi yang Anda lamar terlebih dahulu.' },
@@ -420,55 +407,72 @@ export async function POST(request: Request) {
         );
       }
 
-      // Simpan Nama, Email, No. Telepon, Posisi, Alamat di Kolom A-E, dan KOSONGKAN Kolom F-L terlebih dahulu!
-      const appendRes = await sheets.spreadsheets.values.append({
+      const existingRow = existingRows[foundIndex];
+      const existingRowNumber = foundIndex + 2;
+
+      const finalNama = namaPeserta.trim();
+      const finalEmail = (existingRow[1] || emailPeserta).toString().trim();
+      const finalTelepon = (teleponPeserta || '').toString().trim();
+      const finalPosisi = posisiDilamar.trim();
+      const finalAlamat = alamatPeserta.trim();
+
+      // Update Kolom A s/d E pada baris email peserta yang sudah ada di Monitoring_Peserta
+      await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `${SHEET_NAMES.MONITORING}!A:L`,
+        range: `${SHEET_NAMES.MONITORING}!A${existingRowNumber}:E${existingRowNumber}`,
         valueInputOption: 'RAW',
-        insertDataOption: 'INSERT_ROWS',
         requestBody: {
           values: [
             sanitizeSheetRow([
-              namaPeserta.trim(),
-              emailPeserta.trim(),
-              (teleponPeserta || '').toString().trim(),
-              posisiDilamar,
-              alamatPeserta.trim(),
-              '', // Kolom F: Waktu Mulai (Kosong sampai klik Mulai Ujian)
-              '', // Kolom G: Batas Selesai (Kosong sampai klik Mulai Ujian)
-              '', // Kolom H: Sisa Waktu (Kosong sampai klik Mulai Ujian)
-              '', // Kolom I: Progress Jawaban (Kosong sampai klik Mulai Ujian)
-              '', // Kolom J: Status Ujian (Kosong sampai klik Mulai Ujian)
-              '', // Kolom K: Status Wawancara (Kosong sampai di-approve Admin)
-              '', // Kolom L: Status Kelulusan (Kosong sampai pengumuman diisi)
+              finalNama,
+              finalEmail,
+              finalTelepon,
+              finalPosisi,
+              finalAlamat,
             ]),
           ],
         },
       });
 
-      const updatedRange = appendRes.data.updates?.updatedRange || '';
-      const matchRow = updatedRange.match(/![A-Z]+(\d+)/);
-      const rowNumber = matchRow ? parseInt(matchRow[1], 10) : existingRows.length + 2;
+      const { statusUjian, statusWawancara } = extractStatusUjianDanWawancara(existingRow);
+      const statusKelulusan = extractStatusKelulusan(existingRow);
 
-      // Bersihkan cache agar pendaftaran langsung terbaca di Monitoring Admin
+      const upperUjian = statusUjian.toUpperCase();
+      const upperWawancara = statusWawancara.toUpperCase();
+
+      const kompetensiSelesai = upperUjian.includes('SELESAI');
+      const sedangUjian = upperUjian.includes('SEDANG');
+      const wawancaraApproved =
+        upperWawancara.includes('SUDAH') ||
+        upperWawancara.includes('SELESAI') ||
+        upperWawancara.includes('APPROVED');
+      const kompetensiApproved = isKompetensiApproved(
+        existingRowNumber,
+        finalEmail,
+        finalNama,
+        statusUjian
+      );
+
+      // Bersihkan cache agar data peserta yang sudah lengkap langsung muncul di Monitoring Admin
       invalidateMonitoringCache();
 
       return NextResponse.json({
         success: true,
-        isExisting: false,
-        rowNumber,
-        namaPeserta: namaPeserta.trim(),
-        emailPeserta: emailPeserta.trim(),
-        teleponPeserta: (teleponPeserta || '').toString().trim(),
-        posisiDilamar,
-        alamatPeserta: alamatPeserta.trim(),
-        statusUjian: '',
-        statusWawancara: '',
-        statusKelulusan: '',
-        kompetensiApproved: false,
-        kompetensiSelesai: false,
-        sedangUjian: false,
-        wawancaraApproved: false,
+        isExisting: true,
+        isProfileComplete: true,
+        rowNumber: existingRowNumber,
+        namaPeserta: finalNama,
+        emailPeserta: finalEmail,
+        teleponPeserta: finalTelepon,
+        posisiDilamar: finalPosisi,
+        alamatPeserta: finalAlamat,
+        statusUjian,
+        statusWawancara,
+        statusKelulusan,
+        kompetensiApproved,
+        kompetensiSelesai,
+        sedangUjian,
+        wawancaraApproved,
       });
     }
 

@@ -34,15 +34,9 @@ export default function ParticipantLobbyView({
 
   // State Izin Notifikasi Pengumuman Kelulusan Browser
   const [notifPermission, setNotifPermission] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('default');
+  const [isNotifSubscribed, setIsNotifSubscribed] = useState(false);
   const [notifFeedback, setNotifFeedback] = useState<string>('');
   const [hasNotifiedResult, setHasNotifiedResult] = useState(false);
-
-  // State Modal Pengajuan Ganti Akun / Logout ke Admin
-  const [showRequestModal, setShowRequestModal] = useState(false);
-  const [alasanInput, setAlasanInput] = useState('');
-  const [submittingRequest, setSubmittingRequest] = useState(false);
-  const [requestSubmittedSuccess, setRequestSubmittedSuccess] = useState(false);
-  const [requestError, setRequestError] = useState('');
 
   // Cek dukungan & status izin Notification API saat komponen dimuat
   useEffect(() => {
@@ -51,7 +45,13 @@ export default function ParticipantLobbyView({
       return;
     }
     setNotifPermission(Notification.permission);
-  }, []);
+    try {
+      const subKey = `bps_notif_sub_${(lobbyStatus.emailPeserta || '').trim().toLowerCase()}`;
+      if (Notification.permission === 'granted' && localStorage.getItem(subKey) === 'true') {
+        setIsNotifSubscribed(true);
+      }
+    } catch {}
+  }, [lobbyStatus.emailPeserta]);
 
   // Fungsi meminta izin notifikasi browser kepada peserta
   const handleRequestNotificationPermission = async () => {
@@ -63,10 +63,20 @@ export default function ParticipantLobbyView({
     }
 
     try {
-      const perm = await Notification.requestPermission();
+      const perm =
+        Notification.permission === 'granted'
+          ? 'granted'
+          : await Notification.requestPermission();
       setNotifPermission(perm);
       if (perm === 'granted') {
-        setNotifFeedback('Notifikasi pengumuman berhasil diaktifkan! Anda akan menerima pemberitahuan saat hasil seleksi keluar.');
+        setIsNotifSubscribed(true);
+        try {
+          const subKey = `bps_notif_sub_${(lobbyStatus.emailPeserta || '').trim().toLowerCase()}`;
+          localStorage.setItem(subKey, 'true');
+        } catch {}
+        setNotifFeedback(
+          'Notifikasi pengumuman berhasil diaktifkan! Anda akan menerima pemberitahuan saat hasil seleksi keluar.'
+        );
         try {
           new Notification('Notifikasi Seleksi BPS Kab. Soppeng Aktif', {
             body: `Halo ${lobbyStatus.namaPeserta}, notifikasi pengumuman kelulusan Anda telah aktif.`,
@@ -76,7 +86,9 @@ export default function ParticipantLobbyView({
           // Abaikan jika gagal memunculkan test notification pada mobile browser tertentu
         }
       } else if (perm === 'denied') {
-        setNotifFeedback('Izin notifikasi ditolak di pengaturan browser. Silakan izinkan notifikasi pada ikon gembok di address bar browser Anda.');
+        setNotifFeedback(
+          'Izin notifikasi ditolak di pengaturan browser. Silakan izinkan notifikasi pada ikon gembok di address bar browser Anda.'
+        );
       }
     } catch {
       setNotifFeedback('Gagal meminta izin notifikasi pada browser ini.');
@@ -116,39 +128,6 @@ export default function ParticipantLobbyView({
       })
     );
   }, []);
-
-  // Peserta mengirim permohonan ganti akun ke Admin
-  const handleSubmitResetRequest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setRequestError('');
-    setSubmittingRequest(true);
-
-    try {
-      const res = await fetch('/api/start', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'REQUEST_RESET_ACCOUNT',
-          rowNumber: lobbyStatus.rowNumber,
-          namaPeserta: lobbyStatus.namaPeserta,
-          emailPeserta: lobbyStatus.emailPeserta,
-          posisiDilamar: lobbyStatus.posisiDilamar,
-          alasan: alasanInput.trim(),
-        }),
-      });
-      const json = await res.json();
-      if (res.ok && json.success) {
-        setRequestSubmittedSuccess(true);
-        onRefreshStatus();
-      } else {
-        setRequestError(json.error || 'Gagal mengirim permohonan ke Admin.');
-      }
-    } catch {
-      setRequestError('Gagal menghubungi server. Periksa koneksi internet Anda.');
-    } finally {
-      setSubmittingRequest(false);
-    }
-  };
 
   const {
     namaPeserta,
@@ -666,15 +645,22 @@ export default function ParticipantLobbyView({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* KARTU 1: TES SELEKSI KOMPETENSI */}
               <div
-                className={`rounded-2xl border-2 overflow-hidden flex flex-col justify-between transition-all shadow-md ${
+                className={`rounded-2xl border-2 overflow-hidden flex flex-col justify-between transition-all duration-300 shadow-md relative ${
                   kompetensiSelesai
                     ? 'bg-white border-[#8CC63F]/60'
                     : kompetensiApproved
-                      ? 'bg-white border-[#00AEEF]/65'
+                      ? 'bg-white border-[#00AEEF]/65 shadow-lg shadow-[#00AEEF]/10'
                       : 'bg-white border-slate-300'
                 }`}
               >
-                <div>
+                {/* Efek Shimmer Halus Saat Akses Disetujui Admin */}
+                {kompetensiApproved && !kompetensiSelesai && (
+                  <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl z-0">
+                    <div className="w-1/2 h-full bg-gradient-to-r from-transparent via-[#00AEEF]/8 to-transparent animate-shimmer-sweep" />
+                  </div>
+                )}
+
+                <div className="relative z-10">
                   {/* Garis Aksen Atas Kartu 1 */}
                   <div
                     className={`h-2 w-full ${
@@ -707,11 +693,19 @@ export default function ParticipantLobbyView({
                         Sudah Selesai
                       </span>
                     ) : kompetensiApproved ? (
-                      <span className="bg-[#00AEEF] text-white font-bold text-[10px] uppercase tracking-wider px-3 py-1 rounded-full animate-pulse shadow-2xs">
+                      <span className="inline-flex items-center gap-1.5 bg-[#00AEEF] text-white font-bold text-[10px] uppercase tracking-wider px-3 py-1 rounded-full shadow-2xs animate-pop-in">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
+                        </span>
                         Akses Disetujui Admin
                       </span>
                     ) : (
-                      <span className="bg-[#F7941D] text-slate-950 font-bold text-[10px] uppercase tracking-wider px-3 py-1 rounded-full shadow-2xs">
+                      <span className="inline-flex items-center gap-1.5 bg-[#F7941D] text-slate-950 font-bold text-[10px] uppercase tracking-wider px-3 py-1 rounded-full shadow-2xs">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-950 opacity-50" />
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-slate-950" />
+                        </span>
                         Menunggu Approve
                       </span>
                     )}
@@ -762,7 +756,7 @@ export default function ParticipantLobbyView({
                 </div>
 
                 {/* Footer Aksi Kartu 1 */}
-                <div className="px-6 pb-6 pt-2">
+                <div className="px-6 pb-6 pt-2 relative z-10">
                   {kompetensiSelesai ? (
                     <div className="w-full bg-[#8CC63F] text-slate-950 font-bold uppercase tracking-wider text-xs text-center py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-xs">
                       <svg
@@ -785,7 +779,7 @@ export default function ParticipantLobbyView({
                       onClick={onStartCompetencyExam}
                       className={`w-full font-bold uppercase tracking-wider text-xs py-3.5 px-5 rounded-xl transition-all flex items-center justify-center gap-2 ${
                         kompetensiApproved
-                          ? 'bg-[#8CC63F] hover:bg-[#7BB335] text-slate-950 shadow-sm hover:shadow cursor-pointer'
+                          ? 'bg-[#8CC63F] hover:bg-[#7BB335] hover:scale-[1.01] active:scale-[0.99] text-slate-950 shadow-sm cursor-pointer animate-pulse-glow'
                           : 'bg-slate-200/80 text-slate-600 border border-slate-300 cursor-not-allowed'
                       }`}
                     >
@@ -848,11 +842,15 @@ export default function ParticipantLobbyView({
                       Tahap 2 • Wawancara
                     </span>
                     {wawancaraApproved ? (
-                      <span className="bg-[#8CC63F] text-slate-950 font-bold text-[10px] uppercase tracking-wider px-3 py-1 rounded-full shadow-2xs">
+                      <span className="bg-[#8CC63F] text-slate-950 font-bold text-[10px] uppercase tracking-wider px-3 py-1 rounded-full shadow-2xs animate-pop-in">
                         Sudah Di-Approve
                       </span>
                     ) : (
-                      <span className="bg-[#F7941D] text-slate-950 font-bold text-[10px] uppercase tracking-wider px-3 py-1 rounded-full shadow-2xs">
+                      <span className="inline-flex items-center gap-1.5 bg-[#F7941D] text-slate-950 font-bold text-[10px] uppercase tracking-wider px-3 py-1 rounded-full shadow-2xs">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-950 opacity-50" />
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-slate-950" />
+                        </span>
                         Belum Wawancara
                       </span>
                     )}
@@ -936,44 +934,104 @@ export default function ParticipantLobbyView({
               </div>
             </div>
 
-            {/* Footer Bawah Kartu Lobby */}
-            <div className="pt-4 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-2">
-                {lobbyStatus.resetRequestStatus === 'PENDING' ? (
-                  <span className="bg-amber-50 border border-amber-200 text-amber-800 rounded-full px-3 py-1 font-semibold text-xs animate-pulse">
-                    Menunggu Persetujuan Admin untuk Ganti Akun...
-                  </span>
-                ) : lobbyStatus.resetRequestStatus === 'REJECTED' ? (
-                  <div className="flex items-center gap-2.5">
-                    <span className="bg-red-50 text-red-700 border border-red-200 font-semibold text-xs px-2.5 py-0.5 rounded-full">
-                      Permohonan Ditolak Admin
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setRequestError('');
-                        setRequestSubmittedSuccess(false);
-                        setShowRequestModal(true);
-                      }}
-                      className="text-slate-600 hover:text-red-600 font-semibold underline cursor-pointer"
+            {/* Box Aktivasi Notifikasi di Lobby bagi peserta yang sudah selesai ujian kompetensi */}
+            {kompetensiSelesai && !hasKelulusanValue && (
+              <div className="bg-white border-2 border-slate-200/90 rounded-2xl p-5 space-y-3.5 shadow-2xs">
+                <div className="flex items-start gap-3">
+                  <span className="w-9 h-9 rounded-xl bg-[#00AEEF]/15 text-[#0284C7] flex items-center justify-center shrink-0 mt-0.5">
+                    <svg
+                      className="w-4 h-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
                     >
-                      Ajukan Lagi
-                    </button>
+                      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                    </svg>
+                  </span>
+                  <div>
+                    <p className="text-xs md:text-sm font-extrabold text-slate-900">
+                      Notifikasi Pengumuman Kelulusan Akhir
+                    </p>
+                    <p className="text-xs text-slate-600 leading-relaxed mt-0.5">
+                      Aktifkan izin notifikasi browser agar Anda langsung mendapatkan pemberitahuan saat pengumuman kelulusan telah tersedia.
+                    </p>
+                  </div>
+                </div>
+
+                {notifPermission === 'granted' && isNotifSubscribed ? (
+                  <div className="w-full bg-[#8CC63F]/20 border border-[#8CC63F]/40 py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 text-xs font-extrabold uppercase tracking-wider text-[#3F6212] animate-pop-in">
+                    <svg
+                      className="w-4 h-4 shrink-0"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline className="animate-draw-check" points="20 6 9 17 4 12" />
+                    </svg>
+                    <span>Notifikasi Update Kelulusan Sudah Aktif</span>
                   </div>
                 ) : (
                   <button
                     type="button"
-                    onClick={() => {
-                      setRequestError('');
-                      setRequestSubmittedSuccess(false);
-                      setShowRequestModal(true);
-                    }}
-                    className="text-slate-500 hover:text-red-600 font-medium transition-colors underline cursor-pointer"
+                    onClick={handleRequestNotificationPermission}
+                    className="w-full bg-[#00AEEF] hover:bg-[#0099D6] text-white font-bold uppercase tracking-wider text-xs py-3 px-4 rounded-xl shadow-xs hover:shadow transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    Salah mengisi akun? Ajukan izin ganti akun ke Admin
+                    <svg
+                      className="w-4 h-4 shrink-0"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                    </svg>
+                    <span>Aktifkan Notifikasi Update Kelulusan</span>
                   </button>
                 )}
+
+                {notifFeedback && (
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-medium text-slate-800">
+                    {notifFeedback}
+                  </div>
+                )}
               </div>
+            )}
+
+            {/* Footer Bawah Kartu Lobby */}
+            <div className="pt-4 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <p className="text-slate-500 font-medium">
+                Bukan akun Anda atau ingin berganti peserta pada perangkat ini?
+              </p>
+              <button
+                type="button"
+                onClick={onLogoutIdentity}
+                className="inline-flex items-center gap-1.5 bg-white hover:bg-red-50 text-slate-700 hover:text-red-600 border border-slate-200 hover:border-red-200 font-bold uppercase tracking-wider text-[11px] px-3.5 py-2 rounded-xl transition-all cursor-pointer shadow-2xs"
+              >
+                <svg
+                  className="w-3.5 h-3.5 shrink-0"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+                <span>Keluar / Ganti Email Peserta</span>
+              </button>
             </div>
           </div>
         </div>
@@ -1183,8 +1241,8 @@ export default function ParticipantLobbyView({
                       </div>
                     </div>
 
-                    {notifPermission === 'granted' ? (
-                      <div className="w-full bg-[#8CC63F]/20 border border-[#8CC63F]/40 py-3 px-4 rounded-xl flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider text-[#3F6212]">
+                    {notifPermission === 'granted' && isNotifSubscribed ? (
+                      <div className="w-full bg-[#8CC63F]/20 border border-[#8CC63F]/40 py-3 px-4 rounded-xl flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider text-[#3F6212] animate-pop-in">
                         <svg
                           className="w-4 h-4 shrink-0"
                           viewBox="0 0 24 24"
@@ -1194,7 +1252,7 @@ export default function ParticipantLobbyView({
                           strokeLinecap="round"
                           strokeLinejoin="round"
                         >
-                          <polyline points="20 6 9 17 4 12" />
+                          <polyline className="animate-draw-check" points="20 6 9 17 4 12" />
                         </svg>
                         <span>Notifikasi Update Kelulusan Sudah Aktif</span>
                       </div>
@@ -1261,97 +1319,6 @@ export default function ParticipantLobbyView({
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ===================================================================== */}
-      {/* POP-UP PENGAJUAN GANTI AKUN / KELUAR DARI LOBBY KE ADMIN              */}
-      {/* ===================================================================== */}
-      {showRequestModal && (
-        <div className="fixed inset-0 bg-slate-900/55 backdrop-blur-xs z-50 overflow-y-auto flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-3xl max-w-sm w-full shadow-2xl overflow-hidden my-auto">
-            {/* Top Strip 3 Warna BPS */}
-            <div className="grid grid-cols-3 h-1.5 w-full overflow-hidden">
-              <div className="bg-[#00AEEF]" />
-              <div className="bg-[#8CC63F]" />
-              <div className="bg-[#F7941D]" />
-            </div>
-
-            {/* Header Modal */}
-            <div className="bg-white px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-              <span className="font-bold text-slate-900 text-sm">
-                Permohonan Izin Ganti Akun
-              </span>
-              <span className="bg-[#00AEEF]/12 text-[#0284C7] text-[10px] font-bold uppercase px-2 py-0.5 rounded-full">
-                Admin Approval
-              </span>
-            </div>
-
-            <form onSubmit={handleSubmitResetRequest} className="p-5 space-y-4">
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
-                <p className="text-xs text-amber-900 leading-relaxed">
-                  Permohonan Anda akan langsung dikirim ke <strong className="font-semibold">Sidebar Monitoring Admin</strong>. Admin akan memilih untuk <strong className="font-semibold">Menyetujui</strong> atau <strong className="font-semibold">Menolak</strong> permohonan Anda.
-                </p>
-              </div>
-
-              {requestError && (
-                <div className="bg-red-50 border border-red-200 text-red-700 text-xs font-medium p-3 rounded-xl">
-                  {requestError}
-                </div>
-              )}
-
-              {requestSubmittedSuccess ? (
-                <div className="bg-[#F4FCEB] border border-[#D9F99D] rounded-xl p-4 text-center space-y-2.5">
-                  <p className="text-xs font-bold text-slate-900">
-                    Permohonan Terkirim ke Admin
-                  </p>
-                  <p className="text-[11px] text-slate-600 leading-relaxed">
-                    Silakan tunggu konfirmasi Admin pada sistem atau hubungi pengawas ruangan. Halaman ini akan otomatis kembali ke beranda begitu disetujui.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setShowRequestModal(false)}
-                    className="w-full bg-[#8CC63F] hover:bg-[#7BB335] text-slate-950 font-bold uppercase text-xs py-2.5 rounded-xl transition cursor-pointer"
-                  >
-                    Tutup
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      Alasan Pengajuan (Opsional):
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={alasanInput}
-                      onChange={(e) => setAlasanInput(e.target.value)}
-                      placeholder="Contoh: Salah ketik nama / email..."
-                      className="w-full px-3.5 py-2.5 bg-slate-100/80 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:bg-white focus:border-[#00AEEF] focus:ring-3 focus:ring-[#00AEEF]/15"
-                    />
-                  </div>
-
-                  <div className="flex gap-2.5 pt-1">
-                    <button
-                      type="button"
-                      disabled={submittingRequest}
-                      onClick={() => setShowRequestModal(false)}
-                      className="flex-1 bg-white hover:bg-slate-50 text-slate-700 font-bold uppercase text-xs py-2.5 rounded-xl border border-slate-200 transition cursor-pointer"
-                    >
-                      Batal
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={submittingRequest}
-                      className="flex-1 bg-[#F7941D] hover:bg-[#E08312] disabled:opacity-60 text-slate-950 font-bold uppercase text-xs py-2.5 rounded-xl shadow-xs transition cursor-pointer"
-                    >
-                      {submittingRequest ? 'Mengirim...' : 'Kirim ke Admin'}
-                    </button>
-                  </div>
-                </>
-              )}
-            </form>
           </div>
         </div>
       )}

@@ -284,17 +284,29 @@ export default function UjianPage() {
         if (json.success) {
           localStorage.removeItem(EXAM_SESSION_STORAGE_KEY);
           setLobbyStatus((prev) => {
-            if (!prev) return prev;
+            const base: ParticipantLobbyStatus = prev || {
+              rowNumber: monitoringRowRef.current,
+              namaPeserta,
+              emailPeserta,
+              posisiDilamar,
+              alamatPeserta,
+              statusUjian: '',
+              statusWawancara: '',
+              statusKelulusan: '',
+              kompetensiApproved: true,
+              kompetensiSelesai: true,
+              sedangUjian: false,
+              wawancaraApproved: false,
+            };
             const updated: ParticipantLobbyStatus = {
-              ...prev,
+              ...base,
               kompetensiSelesai: true,
               sedangUjian: false,
               statusUjian: `SELESAI (${terjawabCount}/${soalListRef.current.length})`,
             };
             try {
+              sessionStorage.setItem('bps_temp_lobby_login_v1', JSON.stringify(updated));
               if (updated.kompetensiSelesai && updated.wawancaraApproved) {
-                // Simpan juga ke sessionStorage agar saat klik tombol kembali ke /lobby pop-up kelulusan bisa tampil 1x
-                sessionStorage.setItem('bps_temp_lobby_login_v1', JSON.stringify(updated));
                 localStorage.removeItem(PARTICIPANT_LOBBY_STORAGE_KEY);
                 localStorage.removeItem(TERMS_ACCEPTED_STORAGE_KEY);
               } else {
@@ -303,6 +315,52 @@ export default function UjianPage() {
             } catch {}
             return updated;
           });
+
+          // Sinkronkan status wawancara & kelulusan terbaru dari server setelah submit
+          try {
+            const params = new URLSearchParams();
+            if (monitoringRowRef.current) params.set('rowNumber', String(monitoringRowRef.current));
+            if (emailPeserta) params.set('email', emailPeserta);
+            if (namaPeserta) params.set('nama', namaPeserta);
+            fetch(`/api/start?${params.toString()}`, { cache: 'no-store' })
+              .then((r) => (r.ok ? r.json() : null))
+              .then((fresh) => {
+                if (fresh && fresh.success) {
+                  const synced: ParticipantLobbyStatus = {
+                    rowNumber: fresh.rowNumber,
+                    namaPeserta: fresh.namaPeserta || namaPeserta,
+                    emailPeserta: fresh.emailPeserta || emailPeserta,
+                    teleponPeserta: fresh.teleponPeserta || '',
+                    posisiDilamar: fresh.posisiDilamar || posisiDilamar,
+                    alamatPeserta: fresh.alamatPeserta || alamatPeserta,
+                    statusUjian:
+                      fresh.statusUjian ||
+                      `SELESAI (${terjawabCount}/${soalListRef.current.length})`,
+                    statusWawancara: fresh.statusWawancara || '',
+                    statusKelulusan: fresh.statusKelulusan || '',
+                    kompetensiApproved: Boolean(fresh.kompetensiApproved),
+                    kompetensiSelesai: true,
+                    sedangUjian: false,
+                    wawancaraApproved: Boolean(fresh.wawancaraApproved),
+                  };
+                  setLobbyStatus(synced);
+                  try {
+                    sessionStorage.setItem('bps_temp_lobby_login_v1', JSON.stringify(synced));
+                    if (
+                      synced.wawancaraApproved ||
+                      (synced.statusKelulusan && synced.statusKelulusan.trim())
+                    ) {
+                      localStorage.removeItem(PARTICIPANT_LOBBY_STORAGE_KEY);
+                      localStorage.removeItem(TERMS_ACCEPTED_STORAGE_KEY);
+                    } else {
+                      localStorage.setItem(PARTICIPANT_LOBBY_STORAGE_KEY, JSON.stringify(synced));
+                    }
+                  } catch {}
+                }
+              })
+              .catch(() => {});
+          } catch {}
+
           setIsFinished(true);
         } else {
           alert('Gagal mengirim jawaban: ' + json.error);
@@ -490,6 +548,11 @@ export default function UjianPage() {
         wawancaraApproved={Boolean(lobbyStatus?.wawancaraApproved)}
         statusKelulusan={lobbyStatus?.statusKelulusan || ''}
         onBackToLobby={() => {
+          try {
+            if (lobbyStatus) {
+              sessionStorage.setItem('bps_temp_lobby_login_v1', JSON.stringify(lobbyStatus));
+            }
+          } catch {}
           const isAllCompleted =
             Boolean(lobbyStatus?.wawancaraApproved) ||
             Boolean(lobbyStatus?.statusKelulusan && lobbyStatus.statusKelulusan.trim());
@@ -545,10 +608,9 @@ export default function UjianPage() {
         onSubmit={handleRequestSubmit}
       />
 
-      <div className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        <div
-          className={`${showNavMap ? 'lg:col-span-8' : 'lg:col-span-12'} space-y-6 transition-all`}
-        >
+      {/* LAYOUT UTAMA: KONTEN SOAL KIRI + SIDEBAR NAVIGASI DOCK MENTOK KANAN */}
+      <div className="flex-1 w-full flex flex-col lg:flex-row items-start">
+        <main className="flex-1 min-w-0 w-full p-4 md:p-6 lg:p-8 space-y-6">
           {activeSoal ? (
             <QuestionCard
               activeSoal={activeSoal}
@@ -565,18 +627,17 @@ export default function UjianPage() {
               onNext={() => setCurrentIndex((prev) => Math.min(soalList.length - 1, prev + 1))}
             />
           ) : null}
-        </div>
+        </main>
 
-        {showNavMap && (
-          <QuestionNavigationMap
-            soalList={soalList}
-            jawaban={jawaban}
-            currentIndex={currentIndex}
-            totalTerjawab={totalTerjawab}
-            onSelectQuestion={(idx) => setCurrentIndex(idx)}
-            onHideMap={() => setShowNavMap(false)}
-          />
-        )}
+        <QuestionNavigationMap
+          soalList={soalList}
+          jawaban={jawaban}
+          currentIndex={currentIndex}
+          totalTerjawab={totalTerjawab}
+          isCollapsed={!showNavMap}
+          onToggleCollapse={() => setShowNavMap((prev) => !prev)}
+          onSelectQuestion={(idx) => setCurrentIndex(idx)}
+        />
       </div>
     </div>
   );

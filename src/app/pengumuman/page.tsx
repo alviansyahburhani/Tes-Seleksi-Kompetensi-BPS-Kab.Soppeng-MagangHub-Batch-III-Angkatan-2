@@ -19,6 +19,7 @@ export default function PengumumanPage() {
   const [notifPermission, setNotifPermission] = useState<
     'default' | 'granted' | 'denied' | 'unsupported'
   >('default');
+  const [isNotifSubscribed, setIsNotifSubscribed] = useState(false);
   const [notifFeedback, setNotifFeedback] = useState('');
   const [hasNotifiedResult, setHasNotifiedResult] = useState(false);
 
@@ -30,6 +31,19 @@ export default function PengumumanPage() {
     }
     setNotifPermission(Notification.permission);
   }, []);
+
+  // Sinkronkan status aktivasi notifikasi per email peserta
+  useEffect(() => {
+    if (!statusData?.emailPeserta || typeof window === 'undefined' || !('Notification' in window)) {
+      return;
+    }
+    try {
+      const subKey = `bps_notif_sub_${statusData.emailPeserta.trim().toLowerCase()}`;
+      if (Notification.permission === 'granted' && localStorage.getItem(subKey) === 'true') {
+        setIsNotifSubscribed(true);
+      }
+    } catch {}
+  }, [statusData?.emailPeserta]);
 
   // 2. Timer cooldown 10 detik untuk tombol Cek Status Kelulusan Terbaru
   useEffect(() => {
@@ -66,14 +80,10 @@ export default function PengumumanPage() {
         }
       }
 
-      // Cek sesi satu kali (one-time session) dari sessionStorage atau fallback dari localStorage
+      // Cek sesi dari sessionStorage atau fallback dari localStorage
+      // (Jangan langsung dihapus saat mount agar aman terhadap React Strict Mode double-mount!)
       const tempLobbyLogin = sessionStorage.getItem('bps_temp_lobby_login_v1');
       const savedLobby = tempLobbyLogin || localStorage.getItem(PARTICIPANT_LOBBY_STORAGE_KEY);
-
-      if (tempLobbyLogin) {
-        // Hapus token satu kali agar jika halaman di-refresh peserta wajib login email kembali di /login
-        sessionStorage.removeItem('bps_temp_lobby_login_v1');
-      }
 
       if (!savedLobby) {
         router.replace('/login');
@@ -96,17 +106,12 @@ export default function PengumumanPage() {
         return;
       }
 
-      // Jika datang dari localStorage lama tanpa token satu kali, bersihkan dan minta login ulang via /login
-      if (!tempLobbyLogin) {
+      // Simpan ke sessionStorage selama berada di /pengumuman & bersihkan localStorage
+      try {
+        sessionStorage.setItem('bps_temp_lobby_login_v1', JSON.stringify(parsed));
         localStorage.removeItem(PARTICIPANT_LOBBY_STORAGE_KEY);
         localStorage.removeItem(TERMS_ACCEPTED_STORAGE_KEY);
-        router.replace('/login');
-        return;
-      }
-
-      // Pastikan localStorage bersih bagi peserta yang sudah selesai semua tahap
-      localStorage.removeItem(PARTICIPANT_LOBBY_STORAGE_KEY);
-      localStorage.removeItem(TERMS_ACCEPTED_STORAGE_KEY);
+      } catch {}
 
       setStatusData(parsed);
       setLastCheckedTime(
@@ -150,6 +155,9 @@ export default function PengumumanPage() {
               resetRequestStatus: json.resetRequestStatus || 'NONE',
             };
             setStatusData(freshStatus);
+            try {
+              sessionStorage.setItem('bps_temp_lobby_login_v1', JSON.stringify(freshStatus));
+            } catch {}
           }
         })
         .catch(() => {});
@@ -220,9 +228,19 @@ export default function PengumumanPage() {
     }
 
     try {
-      const permission = await Notification.requestPermission();
+      const permission =
+        Notification.permission === 'granted'
+          ? 'granted'
+          : await Notification.requestPermission();
       setNotifPermission(permission);
       if (permission === 'granted') {
+        setIsNotifSubscribed(true);
+        try {
+          if (statusData?.emailPeserta) {
+            const subKey = `bps_notif_sub_${statusData.emailPeserta.trim().toLowerCase()}`;
+            localStorage.setItem(subKey, 'true');
+          }
+        } catch {}
         setNotifFeedback(
           'Notifikasi berhasil diaktifkan! Anda akan menerima pemberitahuan saat pengumuman kelulusan diperbarui oleh Admin.'
         );
@@ -234,7 +252,7 @@ export default function PengumumanPage() {
         } catch {}
       } else if (permission === 'denied') {
         setNotifFeedback(
-          'Izin notifikasi ditolak di browser Anda. Anda tetap dapat mengecek hasil kelulusan melalui tombol Masuk dengan Email.'
+          'Izin notifikasi diblokir di pengaturan browser Anda. Silakan klik ikon pengaturan/gembok di sebelah alamat URL browser lalu izinkan Notifications.'
         );
       }
     } catch {
@@ -269,8 +287,12 @@ export default function PengumumanPage() {
       Notification.permission === 'granted'
     ) {
       try {
-        const title = 'Pengumuman Hasil Seleksi BPS Kab. Soppeng';
-        const body = `Halo ${statusData.namaPeserta}, pengumuman hasil akhir Seleksi MagangHub BPS Kab. Soppeng telah tersedia.`;
+        const title = isLulus
+          ? 'Selamat! Anda Dinyatakan LULUS Seleksi BPS Soppeng'
+          : 'Pengumuman Hasil Seleksi BPS Kab. Soppeng';
+        const body = isLulus
+          ? `Selamat ${statusData.namaPeserta}! Anda dinyatakan LULUS (${rawKelulusan}) pada Seleksi MagangHub BPS Kab. Soppeng.`
+          : `Halo ${statusData.namaPeserta}, status hasil akhir seleksi Anda: ${rawKelulusan}.`;
         new Notification(title, {
           body,
           icon: '/BPSIndonesia.svg',
@@ -278,7 +300,7 @@ export default function PengumumanPage() {
         setHasNotifiedResult(true);
       } catch {}
     }
-  }, [statusData, hasKelulusanValue, hasNotifiedResult]);
+  }, [statusData, hasKelulusanValue, hasNotifiedResult, isLulus, rawKelulusan]);
 
   if (!statusData) {
     return null;
@@ -304,7 +326,19 @@ export default function PengumumanPage() {
       <div />
 
       <div className="max-w-2xl w-full mx-auto my-auto z-10 py-4">
-        <div className="bg-white border-2 border-slate-200/90 rounded-3xl shadow-xl shadow-slate-900/8 overflow-hidden">
+        <div className="bg-white border-2 border-slate-200/90 rounded-3xl shadow-xl shadow-slate-900/8 overflow-hidden animate-modal-pop relative">
+          {/* Partikel Confetti Selebrasi Saat Dinyatakan LULUS */}
+          {isLulus && (
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-48 overflow-hidden z-20">
+              <span className="absolute left-[10%] top-2 w-2.5 h-2.5 rounded-xs bg-[#00AEEF] animate-confetti-1" />
+              <span className="absolute left-[26%] top-0 w-2 h-3 rounded-xs bg-[#8CC63F] animate-confetti-2" />
+              <span className="absolute left-[46%] top-1 w-2.5 h-2.5 rounded-full bg-[#F7941D] animate-confetti-3" />
+              <span className="absolute left-[66%] top-0 w-2 h-3 rounded-xs bg-[#00AEEF] animate-confetti-2" />
+              <span className="absolute left-[82%] top-2 w-2.5 h-2.5 rounded-xs bg-[#8CC63F] animate-confetti-1" />
+              <span className="absolute left-[92%] top-1 w-2 h-2 rounded-full bg-[#F7941D] animate-confetti-3" />
+            </div>
+          )}
+
           {/* Top Strip 3 Warna BPS */}
           <div className="grid grid-cols-3 h-2 w-full overflow-hidden">
             <div className="bg-[#00AEEF]" />
@@ -502,21 +536,24 @@ export default function PengumumanPage() {
             {/* Konten Utama Berdasarkan Status Kelulusan */}
             {hasKelulusanValue ? (
               isLulus ? (
-                <div className="bg-[#F4FCEB] border-2 border-[#8CC63F] rounded-2xl p-5 md:p-6 space-y-4 shadow-sm">
+                <div className="bg-[#F4FCEB] border-2 border-[#8CC63F] rounded-2xl p-5 md:p-6 space-y-4 shadow-sm animate-modal-pop">
                   <div className="flex items-center gap-3.5">
-                    <div className="w-12 h-12 rounded-2xl bg-[#8CC63F] text-slate-950 flex items-center justify-center shadow-xs shrink-0">
-                      <svg
-                        className="w-6 h-6"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                        <polyline points="22 4 12 14.01 9 11.01" />
-                      </svg>
+                    <div className="relative w-12 h-12 shrink-0 flex items-center justify-center">
+                      <span className="absolute inset-0 rounded-2xl bg-[#8CC63F]/50 animate-ripple-ring" />
+                      <div className="relative w-12 h-12 rounded-2xl bg-[#8CC63F] text-slate-950 flex items-center justify-center shadow-xs animate-pop-in">
+                        <svg
+                          className="w-6 h-6"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.8"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                          <polyline className="animate-draw-check" points="22 4 12 14.01 9 11.01" />
+                        </svg>
+                      </div>
                     </div>
                     <div>
                       <h2 className="text-lg md:text-xl font-extrabold text-slate-900 leading-tight">
@@ -686,8 +723,8 @@ export default function PengumumanPage() {
                     </div>
                   </div>
 
-                  {notifPermission === 'granted' ? (
-                    <div className="w-full bg-[#8CC63F] text-slate-950 py-3 px-4 rounded-xl flex items-center justify-center gap-2 text-xs font-extrabold uppercase tracking-wider shadow-2xs">
+                  {notifPermission === 'granted' && isNotifSubscribed ? (
+                    <div className="w-full bg-[#8CC63F] text-slate-950 py-3 px-4 rounded-xl flex items-center justify-center gap-2 text-xs font-extrabold uppercase tracking-wider shadow-2xs animate-pop-in">
                       <svg
                         className="w-4 h-4 shrink-0"
                         viewBox="0 0 24 24"
@@ -697,7 +734,7 @@ export default function PengumumanPage() {
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       >
-                        <polyline points="20 6 9 17 4 12" />
+                        <polyline className="animate-draw-check" points="20 6 9 17 4 12" />
                       </svg>
                       <span>Notifikasi Update Kelulusan Sudah Aktif</span>
                     </div>
