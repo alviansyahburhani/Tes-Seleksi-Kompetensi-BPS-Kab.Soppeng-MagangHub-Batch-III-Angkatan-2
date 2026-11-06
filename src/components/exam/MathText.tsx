@@ -1,9 +1,14 @@
 'use client';
 
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useMemo } from 'react';
+import katex from 'katex';
 
 /**
  * Menampilkan teks soal yang mungkin memuat rumus matematika (LaTeX) sebagai rumus visual (KaTeX).
+ *
+ * Menggunakan paket npm `katex` yang dibundel langsung di aplikasi (bukan CDN), sehingga
+ * rumus dirender secara sinkron pada render pertama — 0ms jeda, tanpa kedipan teks mentah,
+ * dan tetap berfungsi penuh meskipun koneksi internet peserta lambat/terputus.
  *
  * Format rumus yang dikenali:
  *  1. Dengan pembatas : $...$  \(...\)  (inline)   |   $$...$$  \[...\]  (blok tengah)
@@ -12,53 +17,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
  *     mulai dari perintah LaTeX pertama sampai akhir baris yang dirender sebagai rumus.
  *
  * Aman dipakai untuk soal biasa: teks tanpa rumus tampil persis seperti sebelumnya.
- * Jika KaTeX gagal dimuat (mis. offline), teks asli tetap ditampilkan apa adanya.
  */
-
-const KATEX_VERSION = '0.16.11';
-const KATEX_CDN = `https://cdn.jsdelivr.net/npm/katex@${KATEX_VERSION}/dist`;
-
-type KatexLib = {
-  renderToString: (
-    tex: string,
-    options?: { displayMode?: boolean; throwOnError?: boolean; output?: string }
-  ) => string;
-};
-
-let katexPromise: Promise<KatexLib | null> | null = null;
-
-function loadKatex(): Promise<KatexLib | null> {
-  if (typeof window === 'undefined') return Promise.resolve(null);
-  const existing = (window as unknown as { katex?: KatexLib }).katex;
-  if (existing) return Promise.resolve(existing);
-  if (katexPromise) return katexPromise;
-
-  katexPromise = new Promise<KatexLib | null>((resolve) => {
-    try {
-      if (!document.getElementById('katex-css')) {
-        const link = document.createElement('link');
-        link.id = 'katex-css';
-        link.rel = 'stylesheet';
-        link.href = `${KATEX_CDN}/katex.min.css`;
-        document.head.appendChild(link);
-      }
-      const script = document.createElement('script');
-      script.src = `${KATEX_CDN}/katex.min.js`;
-      script.async = true;
-      script.onload = () =>
-        resolve((window as unknown as { katex?: KatexLib }).katex || null);
-      script.onerror = () => {
-        katexPromise = null; // izinkan coba lagi pada render berikutnya
-        resolve(null);
-      };
-      document.head.appendChild(script);
-    } catch {
-      katexPromise = null;
-      resolve(null);
-    }
-  });
-  return katexPromise;
-}
 
 type Segment =
   | { kind: 'text'; value: string }
@@ -133,23 +92,11 @@ interface MathTextProps {
 }
 
 export default function MathText({ text, className }: MathTextProps) {
-  const [katex, setKatex] = useState<KatexLib | null>(null);
   const segments = useMemo(() => parseSegments(text || ''), [text]);
   const hasMath = segments.some((s) => s.kind === 'math');
 
-  useEffect(() => {
-    if (!hasMath) return;
-    let cancelled = false;
-    loadKatex().then((lib) => {
-      if (!cancelled && lib) setKatex(lib);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [hasMath]);
-
-  // Tanpa rumus / KaTeX belum siap -> tampilkan teks asli apa adanya
-  if (!hasMath || !katex) {
+  // Soal tanpa rumus -> tampilkan teks apa adanya
+  if (!hasMath) {
     return <div className={className}>{text}</div>;
   }
 
@@ -190,4 +137,3 @@ export default function MathText({ text, className }: MathTextProps) {
     </div>
   );
 }
-

@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "googleapis": "^189.0.0",
+    "katex": "^0.19.1",
     "next": "16.4.4",
     "react": "19.3.0",
     "react-dom": "19.3.0"
