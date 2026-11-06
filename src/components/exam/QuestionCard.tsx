@@ -3,6 +3,7 @@
 import { PILIHAN_OPSI_HURUF } from '@/constants/exam';
 import { DataPraktik, Soal } from '@/types/exam';
 import { getTipeBadge } from '@/utils/examHelper';
+import MathText from '@/components/exam/MathText';
 
 interface QuestionCardProps {
   activeSoal: Soal;
@@ -137,9 +138,16 @@ export default function QuestionCard({
               )}
             </div>
 
+            {activeSoal.tipe === 'DESKRIPSI' ? (
+              <MathText
+                text={activeSoal.pertanyaan}
+                className="text-slate-900 font-bold text-base md:text-lg leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
+              />
+            ) : (
             <p className="text-slate-900 font-bold text-base md:text-lg leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
               {activeSoal.pertanyaan}
             </p>
+            )}
           </div>
         </div>
 
