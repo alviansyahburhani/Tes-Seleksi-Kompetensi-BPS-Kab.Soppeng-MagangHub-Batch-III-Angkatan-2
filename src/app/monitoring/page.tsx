@@ -157,7 +157,7 @@ export default function MonitoringAdminPage() {
         'x-admin-pin': adminPin,
       },
       body: JSON.stringify({ alertId }),
-    }).catch(() => {});
+    }).catch(() => { });
   };
 
   // Handler Approve / Revoke Kompetensi & Wawancara
@@ -510,37 +510,33 @@ export default function MonitoringAdminPage() {
         {/* SIDEBAR NAVIGASI ADMIN (CURVED DOCK MENTOK KIRI TERBUKA & TERTUTUP) */}
         {/* ================================================================= */}
         <aside
-          className={`w-full ${
-            isSidebarCollapsed
-              ? 'lg:w-16 bg-[#00AEEF] text-white shadow-xl'
-              : 'lg:w-72 bg-white text-slate-800 border-y-2 border-r-2 border-slate-200/90 shadow-lg'
-          } lg:my-8 lg:rounded-r-[36px] shrink-0 lg:sticky lg:top-24 transition-all duration-300 ease-in-out relative z-20`}
+          className={`w-full ${isSidebarCollapsed
+            ? 'lg:w-16 bg-[#00AEEF] text-white shadow-xl'
+            : 'lg:w-72 bg-white text-slate-800 border-y-2 border-r-2 border-slate-200/90 shadow-lg'
+            } lg:my-8 lg:rounded-r-[36px] shrink-0 lg:sticky lg:top-24 transition-all duration-300 ease-in-out relative z-20`}
         >
           {/* Ornamen Lengkungan Halus Atas & Bawah (Menyesuaikan Warna Terbuka Putih / Tertutup Biru) */}
           <div
             aria-hidden="true"
-            className={`hidden lg:block absolute -top-7 left-0 w-7 h-7 bg-transparent rounded-bl-3xl pointer-events-none transition-all duration-300 ${
-              isSidebarCollapsed
-                ? 'shadow-[-10px_10px_0_0_#00AEEF]'
-                : 'shadow-[-10px_10px_0_0_#ffffff] border-l-2 border-b-2 border-slate-200/90'
-            }`}
+            className={`hidden lg:block absolute -top-7 left-0 w-7 h-7 bg-transparent rounded-bl-3xl pointer-events-none transition-all duration-300 ${isSidebarCollapsed
+              ? 'shadow-[-10px_10px_0_0_#00AEEF]'
+              : 'shadow-[-10px_10px_0_0_#ffffff] border-l-2 border-b-2 border-slate-200/90'
+              }`}
           />
           <div
             aria-hidden="true"
-            className={`hidden lg:block absolute -bottom-7 left-0 w-7 h-7 bg-transparent rounded-tl-3xl pointer-events-none transition-all duration-300 ${
-              isSidebarCollapsed
-                ? 'shadow-[-10px_-10px_0_0_#00AEEF]'
-                : 'shadow-[-10px_-10px_0_0_#ffffff] border-l-2 border-t-2 border-slate-200/90'
-            }`}
+            className={`hidden lg:block absolute -bottom-7 left-0 w-7 h-7 bg-transparent rounded-tl-3xl pointer-events-none transition-all duration-300 ${isSidebarCollapsed
+              ? 'shadow-[-10px_-10px_0_0_#00AEEF]'
+              : 'shadow-[-10px_-10px_0_0_#ffffff] border-l-2 border-t-2 border-slate-200/90'
+              }`}
           />
 
           {/* Header Sidebar + Tombol Hide / Expand */}
           <div
-            className={`flex items-center ${
-              isSidebarCollapsed
-                ? 'pt-5 pb-2 px-2 justify-center'
-                : 'pt-5 pb-3.5 px-4 justify-between border-b border-slate-200/80'
-            }`}
+            className={`flex items-center ${isSidebarCollapsed
+              ? 'pt-5 pb-2 px-2 justify-center'
+              : 'pt-5 pb-3.5 px-4 justify-between border-b border-slate-200/80'
+              }`}
           >
             {!isSidebarCollapsed && (
               <div className="flex items-center gap-2.5 min-w-0">
@@ -575,11 +571,10 @@ export default function MonitoringAdminPage() {
               type="button"
               onClick={() => setIsSidebarCollapsed((prev) => !prev)}
               title={isSidebarCollapsed ? 'Buka Panel Sidebar' : 'Kecilkan ke Samping Kiri'}
-              className={`flex items-center justify-center cursor-pointer transition-all shrink-0 ${
-                isSidebarCollapsed
-                  ? 'w-11 h-11 rounded-2xl bg-white text-[#00AEEF] shadow-md hover:scale-105'
-                  : 'w-9 h-9 rounded-xl bg-slate-100 hover:bg-[#00AEEF] text-slate-600 hover:text-white shadow-2xs'
-              }`}
+              className={`flex items-center justify-center cursor-pointer transition-all shrink-0 ${isSidebarCollapsed
+                ? 'w-11 h-11 rounded-2xl bg-white text-[#00AEEF] shadow-md hover:scale-105'
+                : 'w-9 h-9 rounded-xl bg-slate-100 hover:bg-[#00AEEF] text-slate-600 hover:text-white shadow-2xs'
+                }`}
             >
               {isSidebarCollapsed ? (
                 <svg
@@ -624,19 +619,16 @@ export default function MonitoringAdminPage() {
               type="button"
               onClick={() => setActiveTab('MONITORING')}
               title={`Monitoring Ujian (${pesertaList.length} Peserta)`}
-              className={`transition-all cursor-pointer relative ${
-                isSidebarCollapsed
-                  ? `w-11 h-11 rounded-2xl flex items-center justify-center ${
-                      activeTab === 'MONITORING'
-                        ? 'bg-white text-[#00AEEF] shadow-md'
-                        : 'text-white/85 hover:bg-white/15 hover:text-white'
-                    }`
-                  : `w-full p-3 rounded-2xl border-2 text-left flex items-center justify-between gap-2.5 ${
-                      activeTab === 'MONITORING'
-                        ? 'bg-[#00AEEF] border-[#00AEEF] text-white shadow-sm'
-                        : 'bg-slate-50/80 hover:bg-slate-100 border-slate-200/80 text-slate-800'
-                    }`
-              }`}
+              className={`transition-all cursor-pointer relative ${isSidebarCollapsed
+                ? `w-11 h-11 rounded-2xl flex items-center justify-center ${activeTab === 'MONITORING'
+                  ? 'bg-white text-[#00AEEF] shadow-md'
+                  : 'text-white/85 hover:bg-white/15 hover:text-white'
+                }`
+                : `w-full p-3 rounded-2xl border-2 text-left flex items-center justify-between gap-2.5 ${activeTab === 'MONITORING'
+                  ? 'bg-[#00AEEF] border-[#00AEEF] text-white shadow-sm'
+                  : 'bg-slate-50/80 hover:bg-slate-100 border-slate-200/80 text-slate-800'
+                }`
+                }`}
             >
               {isSidebarCollapsed ? (
                 <>
@@ -662,11 +654,10 @@ export default function MonitoringAdminPage() {
                 <>
                   <div className="min-w-0 flex items-center gap-3">
                     <span
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                        activeTab === 'MONITORING'
-                          ? 'bg-white/20 text-white'
-                          : 'bg-[#00AEEF]/12 text-[#0284C7]'
-                      }`}
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'MONITORING'
+                        ? 'bg-white/20 text-white'
+                        : 'bg-[#00AEEF]/12 text-[#0284C7]'
+                        }`}
                     >
                       <svg
                         className="w-4 h-4 stroke-current"
@@ -686,20 +677,18 @@ export default function MonitoringAdminPage() {
                         Monitoring Ujian
                       </p>
                       <p
-                        className={`text-[10px] font-medium mt-0.5 truncate ${
-                          activeTab === 'MONITORING' ? 'text-white/85' : 'text-slate-500'
-                        }`}
+                        className={`text-[10px] font-medium mt-0.5 truncate ${activeTab === 'MONITORING' ? 'text-white/85' : 'text-slate-500'
+                          }`}
                       >
                         Pantau waktu &amp; alarm
                       </p>
                     </div>
                   </div>
                   <span
-                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-extrabold shrink-0 ${
-                      activeTab === 'MONITORING'
-                        ? 'bg-white text-[#0284C7]'
-                        : 'bg-slate-200/80 text-slate-700'
-                    }`}
+                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-extrabold shrink-0 ${activeTab === 'MONITORING'
+                      ? 'bg-white text-[#0284C7]'
+                      : 'bg-slate-200/80 text-slate-700'
+                      }`}
                   >
                     {pesertaList.length}
                   </span>
@@ -712,19 +701,16 @@ export default function MonitoringAdminPage() {
               type="button"
               onClick={() => setActiveTab('APPROVE_KOMPETENSI')}
               title={`Approve Kompetensi (${waitingKompetensiCount} Menunggu)`}
-              className={`transition-all cursor-pointer relative ${
-                isSidebarCollapsed
-                  ? `w-11 h-11 rounded-2xl flex items-center justify-center ${
-                      activeTab === 'APPROVE_KOMPETENSI'
-                        ? 'bg-white text-[#00AEEF] shadow-md'
-                        : 'text-white/85 hover:bg-white/15 hover:text-white'
-                    }`
-                  : `w-full p-3 rounded-2xl border-2 text-left flex items-center justify-between gap-2.5 ${
-                      activeTab === 'APPROVE_KOMPETENSI'
-                        ? 'bg-[#8CC63F] border-[#8CC63F] text-slate-950 shadow-sm'
-                        : 'bg-slate-50/80 hover:bg-slate-100 border-slate-200/80 text-slate-800'
-                    }`
-              }`}
+              className={`transition-all cursor-pointer relative ${isSidebarCollapsed
+                ? `w-11 h-11 rounded-2xl flex items-center justify-center ${activeTab === 'APPROVE_KOMPETENSI'
+                  ? 'bg-white text-[#00AEEF] shadow-md'
+                  : 'text-white/85 hover:bg-white/15 hover:text-white'
+                }`
+                : `w-full p-3 rounded-2xl border-2 text-left flex items-center justify-between gap-2.5 ${activeTab === 'APPROVE_KOMPETENSI'
+                  ? 'bg-[#8CC63F] border-[#8CC63F] text-slate-950 shadow-sm'
+                  : 'bg-slate-50/80 hover:bg-slate-100 border-slate-200/80 text-slate-800'
+                }`
+                }`}
             >
               {isSidebarCollapsed ? (
                 <>
@@ -750,11 +736,10 @@ export default function MonitoringAdminPage() {
                 <>
                   <div className="min-w-0 flex items-center gap-3">
                     <span
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                        activeTab === 'APPROVE_KOMPETENSI'
-                          ? 'bg-slate-950/10 text-slate-950'
-                          : 'bg-[#8CC63F]/20 text-[#3F6212]'
-                      }`}
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'APPROVE_KOMPETENSI'
+                        ? 'bg-slate-950/10 text-slate-950'
+                        : 'bg-[#8CC63F]/20 text-[#3F6212]'
+                        }`}
                     >
                       <svg
                         className="w-4 h-4 stroke-current"
@@ -774,20 +759,18 @@ export default function MonitoringAdminPage() {
                         Approve Kompetensi
                       </p>
                       <p
-                        className={`text-[10px] font-medium mt-0.5 truncate ${
-                          activeTab === 'APPROVE_KOMPETENSI' ? 'text-slate-800' : 'text-slate-500'
-                        }`}
+                        className={`text-[10px] font-medium mt-0.5 truncate ${activeTab === 'APPROVE_KOMPETENSI' ? 'text-slate-800' : 'text-slate-500'
+                          }`}
                       >
                         Izinkan akses mulai ujian
                       </p>
                     </div>
                   </div>
                   <span
-                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-extrabold shrink-0 ${
-                      waitingKompetensiCount > 0
-                        ? 'bg-[#F7941D] text-slate-950'
-                        : 'bg-white/80 text-slate-700'
-                    }`}
+                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-extrabold shrink-0 ${waitingKompetensiCount > 0
+                      ? 'bg-[#F7941D] text-slate-950'
+                      : 'bg-white/80 text-slate-700'
+                      }`}
                   >
                     {waitingKompetensiCount}
                   </span>
@@ -800,19 +783,16 @@ export default function MonitoringAdminPage() {
               type="button"
               onClick={() => setActiveTab('APPROVE_WAWANCARA')}
               title={`Approve Wawancara (${waitingWawancaraCount} Belum Wawancara)`}
-              className={`transition-all cursor-pointer relative ${
-                isSidebarCollapsed
-                  ? `w-11 h-11 rounded-2xl flex items-center justify-center ${
-                      activeTab === 'APPROVE_WAWANCARA'
-                        ? 'bg-white text-[#00AEEF] shadow-md'
-                        : 'text-white/85 hover:bg-white/15 hover:text-white'
-                    }`
-                  : `w-full p-3 rounded-2xl border-2 text-left flex items-center justify-between gap-2.5 ${
-                      activeTab === 'APPROVE_WAWANCARA'
-                        ? 'bg-[#F7941D] border-[#F7941D] text-slate-950 shadow-sm'
-                        : 'bg-slate-50/80 hover:bg-slate-100 border-slate-200/80 text-slate-800'
-                    }`
-              }`}
+              className={`transition-all cursor-pointer relative ${isSidebarCollapsed
+                ? `w-11 h-11 rounded-2xl flex items-center justify-center ${activeTab === 'APPROVE_WAWANCARA'
+                  ? 'bg-white text-[#00AEEF] shadow-md'
+                  : 'text-white/85 hover:bg-white/15 hover:text-white'
+                }`
+                : `w-full p-3 rounded-2xl border-2 text-left flex items-center justify-between gap-2.5 ${activeTab === 'APPROVE_WAWANCARA'
+                  ? 'bg-[#F7941D] border-[#F7941D] text-slate-950 shadow-sm'
+                  : 'bg-slate-50/80 hover:bg-slate-100 border-slate-200/80 text-slate-800'
+                }`
+                }`}
             >
               {isSidebarCollapsed ? (
                 <>
@@ -838,11 +818,10 @@ export default function MonitoringAdminPage() {
                 <>
                   <div className="min-w-0 flex items-center gap-3">
                     <span
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                        activeTab === 'APPROVE_WAWANCARA'
-                          ? 'bg-slate-950/10 text-slate-950'
-                          : 'bg-[#F7941D]/15 text-[#D97706]'
-                      }`}
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activeTab === 'APPROVE_WAWANCARA'
+                        ? 'bg-slate-950/10 text-slate-950'
+                        : 'bg-[#F7941D]/15 text-[#D97706]'
+                        }`}
                     >
                       <svg
                         className="w-4 h-4 stroke-current"
@@ -862,20 +841,18 @@ export default function MonitoringAdminPage() {
                         Approve Wawancara
                       </p>
                       <p
-                        className={`text-[10px] font-medium mt-0.5 truncate ${
-                          activeTab === 'APPROVE_WAWANCARA' ? 'text-slate-800' : 'text-slate-500'
-                        }`}
+                        className={`text-[10px] font-medium mt-0.5 truncate ${activeTab === 'APPROVE_WAWANCARA' ? 'text-slate-800' : 'text-slate-500'
+                          }`}
                       >
                         Verifikasi selesai wawancara
                       </p>
                     </div>
                   </div>
                   <span
-                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-extrabold shrink-0 ${
-                      waitingWawancaraCount > 0
-                        ? 'bg-[#00AEEF] text-white'
-                        : 'bg-white/80 text-slate-700'
-                    }`}
+                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-extrabold shrink-0 ${waitingWawancaraCount > 0
+                      ? 'bg-[#00AEEF] text-white'
+                      : 'bg-white/80 text-slate-700'
+                      }`}
                   >
                     {waitingWawancaraCount}
                   </span>
@@ -892,11 +869,19 @@ export default function MonitoringAdminPage() {
                 Catatan Sistem
               </p>
               <p>
-                • Kolom Ujian &amp; Wawancara otomatis kosong saat peserta baru isi Daftar Hadir.
+                • Approve Kompetensi dilakukan Operator ruangan seleksi dan di approve Ketika peserta telah berada diruangan seleksi.
               </p>
               <p>
-                • Timer 60 menit berjalan saat peserta klik{' '}
-                <strong className="font-bold text-slate-800">Mulai Ujian</strong>.
+                • ketika peserta telah di Approve minta peserta untuk menekan tombol refresh kartu ujiannya agar dapat memulai ujian kompetensinya.
+              </p>
+              <p>
+                • Waktu Ujian seleksi Peserta Baru berjalan pada saat peserta menekan tombol mulai ujian.
+              </p>
+              <p>
+                • Jika Operator ruangan ujian ingin memperlihatkan Monitoring dalam ruangan diharapkan Untk memblur identitas peserta agar peserta lain tidak dapat melihat email dari peserta lain.
+              </p>
+              <p>
+                • Setelah melakukan wawancara diharapkan langsung melakukan approve agar peserta dapat melanjutkan tahap berikutnya.
               </p>
             </div>
           )}
@@ -918,11 +903,10 @@ export default function MonitoringAdminPage() {
                   key={pos}
                   type="button"
                   onClick={() => setFilterPosisi(pos)}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer transition-all ${
-                    filterPosisi === pos
-                      ? 'bg-[#00AEEF] text-white shadow-xs'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200/80'
-                  }`}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer transition-all ${filterPosisi === pos
+                    ? 'bg-[#00AEEF] text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200/80'
+                    }`}
                 >
                   {pos}
                 </button>
@@ -941,11 +925,10 @@ export default function MonitoringAdminPage() {
                         ? 'Tampilkan Nama & Email Peserta'
                         : 'Samarkan (Blur) Nama & Email Peserta'
                     }
-                    className={`px-3.5 py-2.5 rounded-xl border-2 text-xs font-bold uppercase tracking-wider cursor-pointer transition-all flex items-center gap-2 ${
-                      isIdentityBlurred
-                        ? 'bg-slate-900 border-slate-900 text-white shadow-xs'
-                        : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
-                    }`}
+                    className={`px-3.5 py-2.5 rounded-xl border-2 text-xs font-bold uppercase tracking-wider cursor-pointer transition-all flex items-center gap-2 ${isIdentityBlurred
+                      ? 'bg-slate-900 border-slate-900 text-white shadow-xs'
+                      : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
+                      }`}
                   >
                     {isIdentityBlurred ? (
                       <svg
@@ -1000,11 +983,10 @@ export default function MonitoringAdminPage() {
                       ? 'Tampilkan Email Peserta'
                       : 'Samarkan (Blur) Email Peserta'
                   }
-                  className={`px-3.5 py-2.5 rounded-xl border-2 text-xs font-bold uppercase tracking-wider cursor-pointer transition-all flex items-center gap-2 ${
-                    isKompetensiEmailBlurred
-                      ? 'bg-slate-900 border-slate-900 text-white shadow-xs'
-                      : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
-                  }`}
+                  className={`px-3.5 py-2.5 rounded-xl border-2 text-xs font-bold uppercase tracking-wider cursor-pointer transition-all flex items-center gap-2 ${isKompetensiEmailBlurred
+                    ? 'bg-slate-900 border-slate-900 text-white shadow-xs'
+                    : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
+                    }`}
                 >
                   {isKompetensiEmailBlurred ? (
                     <svg
@@ -1183,13 +1165,12 @@ export default function MonitoringAdminPage() {
                           return (
                             <tr
                               key={p.id}
-                              className={`transition-colors ${
-                                pesertaActiveAlert
-                                  ? 'bg-red-50 hover:bg-red-100/70'
-                                  : isDone
-                                    ? 'bg-[#F4FCEB]/50 hover:bg-[#F4FCEB]'
-                                    : 'bg-white hover:bg-slate-50/90'
-                              }`}
+                              className={`transition-colors ${pesertaActiveAlert
+                                ? 'bg-red-50 hover:bg-red-100/70'
+                                : isDone
+                                  ? 'bg-[#F4FCEB]/50 hover:bg-[#F4FCEB]'
+                                  : 'bg-white hover:bg-slate-50/90'
+                                }`}
                             >
                               <td className="py-4 px-4 border-r border-slate-100 font-bold text-slate-500 text-center">
                                 {index + 1}
@@ -1199,9 +1180,8 @@ export default function MonitoringAdminPage() {
                               <td className="py-4 px-4 border-r border-slate-100">
                                 <div className="flex flex-wrap items-center gap-2">
                                   <p
-                                    className={`font-bold text-slate-900 text-sm transition-all ${
-                                      isIdentityBlurred ? 'blur-xs select-none' : ''
-                                    }`}
+                                    className={`font-bold text-slate-900 text-sm transition-all ${isIdentityBlurred ? 'blur-xs select-none' : ''
+                                      }`}
                                   >
                                     {p.namaPeserta}
                                   </p>
@@ -1213,9 +1193,8 @@ export default function MonitoringAdminPage() {
                                 </div>
                                 {(p.emailPeserta || p.teleponPeserta) && (
                                   <p
-                                    className={`text-[11px] font-medium text-slate-500 mt-0.5 transition-all ${
-                                      isIdentityBlurred ? 'blur-xs select-none' : ''
-                                    }`}
+                                    className={`text-[11px] font-medium text-slate-500 mt-0.5 transition-all ${isIdentityBlurred ? 'blur-xs select-none' : ''
+                                      }`}
                                   >
                                     {p.emailPeserta}{' '}
                                     {p.teleponPeserta ? `• ${p.teleponPeserta}` : ''}
@@ -1255,13 +1234,12 @@ export default function MonitoringAdminPage() {
                                 {isWorking || isDone ? (
                                   <>
                                     <div
-                                      className={`inline-block px-3.5 py-1.5 rounded-xl font-mono text-sm md:text-base font-extrabold shadow-2xs ${
-                                        isDone
-                                          ? 'bg-slate-100 text-slate-700 border border-slate-200'
-                                          : p.sisaDetik < 300
-                                            ? 'bg-red-600 text-white animate-pulse'
-                                            : 'bg-[#F7941D] text-slate-950'
-                                      }`}
+                                      className={`inline-block px-3.5 py-1.5 rounded-xl font-mono text-sm md:text-base font-extrabold shadow-2xs ${isDone
+                                        ? 'bg-slate-100 text-slate-700 border border-slate-200'
+                                        : p.sisaDetik < 300
+                                          ? 'bg-red-600 text-white animate-pulse'
+                                          : 'bg-[#F7941D] text-slate-950'
+                                        }`}
                                     >
                                       {formatTime(p.sisaDetik)}
                                     </div>
@@ -1420,11 +1398,10 @@ export default function MonitoringAdminPage() {
                           return (
                             <tr
                               key={p.id}
-                              className={`transition-colors ${
-                                !p.kompetensiApproved && !p.statusUjian
-                                  ? 'bg-amber-50/60 hover:bg-amber-50'
-                                  : 'bg-white hover:bg-slate-50/90'
-                              }`}
+                              className={`transition-colors ${!p.kompetensiApproved && !p.statusUjian
+                                ? 'bg-amber-50/60 hover:bg-amber-50'
+                                : 'bg-white hover:bg-slate-50/90'
+                                }`}
                             >
                               <td className="py-4 px-4 border-r border-slate-100 font-bold text-slate-500 text-center">
                                 {idx + 1}
@@ -1435,9 +1412,8 @@ export default function MonitoringAdminPage() {
                                   <p className="text-[11px] font-medium text-slate-500 mt-0.5">
                                     {p.emailPeserta && (
                                       <span
-                                        className={`transition-all ${
-                                          isKompetensiEmailBlurred ? 'blur-xs select-none' : ''
-                                        }`}
+                                        className={`transition-all ${isKompetensiEmailBlurred ? 'blur-xs select-none' : ''
+                                          }`}
                                       >
                                         {p.emailPeserta}
                                       </span>
@@ -1592,11 +1568,10 @@ export default function MonitoringAdminPage() {
                           return (
                             <tr
                               key={p.id}
-                              className={`transition-colors ${
-                                p.wawancaraApproved
-                                  ? 'bg-[#F4FCEB]/50 hover:bg-[#F4FCEB]'
-                                  : 'bg-white hover:bg-slate-50/90'
-                              }`}
+                              className={`transition-colors ${p.wawancaraApproved
+                                ? 'bg-[#F4FCEB]/50 hover:bg-[#F4FCEB]'
+                                : 'bg-white hover:bg-slate-50/90'
+                                }`}
                             >
                               <td className="py-4 px-4 border-r border-slate-100 font-bold text-slate-500 text-center">
                                 {idx + 1}
