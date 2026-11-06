@@ -29,6 +29,9 @@ export default function ParticipantLobbyView({
   const [lastCheckedTime, setLastCheckedTime] = useState<string>('');
   const [isCheckboxChecked, setIsCheckboxChecked] = useState(false);
 
+  // State untuk membuka kembali pop-up Alur & Ketentuan (mode baca saja, setelah peserta menyetujui)
+  const [showTermsViewer, setShowTermsViewer] = useState(false);
+
   // State Cooldown tombol manual Cek Status Terbaru (10 detik)
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
 
@@ -190,7 +193,7 @@ export default function ParticipantLobbyView({
       {/* ===================================================================== */}
       {/* POP-UP MANDATORY: ALUR & KETENTUAN UJIAN (MUNCUL JIKA BELUM CENTANG/SETUJU) */}
       {/* ===================================================================== */}
-      {!hasAcceptedTerms && (
+      {(!hasAcceptedTerms || showTermsViewer) && (
         <div className="fixed inset-0 bg-slate-900/55 backdrop-blur-xs z-50 overflow-y-auto flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-3xl max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto">
             {/* Top Strip 3 Warna BPS */}
@@ -206,7 +209,7 @@ export default function ParticipantLobbyView({
                 Alur &amp; Ketentuan Seleksi
               </h3>
               <span className="bg-[#F7941D]/15 text-[#B45309] border border-[#F7941D]/30 rounded-full text-[11px] font-semibold uppercase tracking-wider px-2.5 py-0.5">
-                Wajib Disetujui
+                {hasAcceptedTerms ? 'Sudah Disetujui' : 'Wajib Disetujui'}
               </span>
             </div>
 
@@ -291,6 +294,17 @@ export default function ParticipantLobbyView({
                 </ol>
               </div>
 
+              {/* Mode baca saja (sudah menyetujui): hanya tombol Tutup. Mode wajib: checkbox + tombol Setuju */}
+              {hasAcceptedTerms ? (
+                <button
+                  type="button"
+                  onClick={() => setShowTermsViewer(false)}
+                  className="w-full bg-[#00AEEF] hover:bg-[#0299D4] text-white font-bold uppercase tracking-wider text-xs py-3.5 px-6 rounded-xl shadow-xs hover:shadow transition-all cursor-pointer"
+                >
+                  Tutup
+                </button>
+              ) : (
+              <>
               {/* Checkbox Persetujuan */}
               <label className="flex items-start gap-3 p-3.5 bg-slate-50/70 hover:bg-sky-50/60 border border-slate-200 rounded-xl cursor-pointer select-none transition-colors">
                 <input
@@ -315,6 +329,8 @@ export default function ParticipantLobbyView({
                   ? 'Setuju & Lanjutkan ke Status Seleksi'
                   : 'Centang Persetujuan Terlebih Dahulu'}
               </button>
+              </>
+              )}
             </div>
           </div>
         </div>
@@ -411,6 +427,27 @@ export default function ParticipantLobbyView({
                   <p className="text-xs md:text-sm text-white/90 font-medium mt-0.5">
                     Badan Pusat Statistik Kabupaten Soppeng • MagangHub Batch III
                   </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowTermsViewer(true)}
+                    className="mt-2.5 inline-flex items-center gap-1.5 bg-white/20 hover:bg-white/30 border border-white/30 text-white font-bold text-[11px] uppercase tracking-wider px-3 py-1.5 rounded-xl transition-all cursor-pointer"
+                  >
+                    <svg
+                      className="w-3.5 h-3.5 shrink-0"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                    </svg>
+                    <span>Lihat Alur &amp; Ketentuan</span>
+                  </button>
                 </div>
               </div>
 
