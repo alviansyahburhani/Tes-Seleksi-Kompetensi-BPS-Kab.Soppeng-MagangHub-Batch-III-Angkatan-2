@@ -21,36 +21,8 @@ export default function PengumumanPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [lastCheckedTime, setLastCheckedTime] = useState<string>('');
-  const [notifPermission, setNotifPermission] = useState<
-    'default' | 'granted' | 'denied' | 'unsupported'
-  >('default');
-  const [isNotifSubscribed, setIsNotifSubscribed] = useState(false);
-  const [notifFeedback, setNotifFeedback] = useState('');
-  const [hasNotifiedResult, setHasNotifiedResult] = useState(false);
 
-  // 1. Cek izin notifikasi browser
-  useEffect(() => {
-    if (typeof window === 'undefined' || !('Notification' in window)) {
-      setNotifPermission('unsupported');
-      return;
-    }
-    setNotifPermission(Notification.permission);
-  }, []);
-
-  // Sinkronkan status aktivasi notifikasi per email peserta
-  useEffect(() => {
-    if (!statusData?.emailPeserta || typeof window === 'undefined' || !('Notification' in window)) {
-      return;
-    }
-    try {
-      const subKey = `bps_notif_sub_${statusData.emailPeserta.trim().toLowerCase()}`;
-      if (Notification.permission === 'granted' && localStorage.getItem(subKey) === 'true') {
-        setIsNotifSubscribed(true);
-      }
-    } catch {}
-  }, [statusData?.emailPeserta]);
-
-  // 2. Timer cooldown 10 detik untuk tombol Cek Status Kelulusan Terbaru
+  // 1. Timer cooldown 10 detik untuk tombol Cek Status Kelulusan Terbaru
   useEffect(() => {
     if (cooldownSeconds <= 0) return;
     const timer = setInterval(() => {
@@ -59,7 +31,7 @@ export default function PengumumanPage() {
     return () => clearInterval(timer);
   }, [cooldownSeconds]);
 
-  // 3. Validasi sesi peserta saat membuka /pengumuman
+  // 2. Validasi sesi peserta saat membuka /pengumuman
   useEffect(() => {
     try {
       // Jika masih ada sesi ujian yang aktif, kembalikan ke /ujian
@@ -171,7 +143,7 @@ export default function PengumumanPage() {
     }
   }, [router]);
 
-  // 4. Handler cek pembaruan status kelulusan manual
+  // 3. Handler cek pembaruan status kelulusan manual
   const handleManualRefresh = useCallback(async () => {
     if (!statusData || refreshing || cooldownSeconds > 0) return;
     setRefreshing(true);
@@ -223,48 +195,6 @@ export default function PengumumanPage() {
     }
   }, [statusData, refreshing, cooldownSeconds, router]);
 
-  // 5. Meminta izin notifikasi browser
-  const handleRequestNotificationPermission = async () => {
-    setNotifFeedback('');
-    if (typeof window === 'undefined' || !('Notification' in window)) {
-      setNotifPermission('unsupported');
-      setNotifFeedback('Browser perangkat Anda tidak mendukung fitur notifikasi sistem.');
-      return;
-    }
-
-    try {
-      const permission =
-        Notification.permission === 'granted'
-          ? 'granted'
-          : await Notification.requestPermission();
-      setNotifPermission(permission);
-      if (permission === 'granted') {
-        setIsNotifSubscribed(true);
-        try {
-          if (statusData?.emailPeserta) {
-            const subKey = `bps_notif_sub_${statusData.emailPeserta.trim().toLowerCase()}`;
-            localStorage.setItem(subKey, 'true');
-          }
-        } catch {}
-        setNotifFeedback(
-          'Notifikasi berhasil diaktifkan! Anda akan menerima pemberitahuan saat pengumuman kelulusan diperbarui oleh Admin.'
-        );
-        try {
-          new Notification('Notifikasi Seleksi BPS Kab. Soppeng Aktif', {
-            body: `Halo ${statusData?.namaPeserta || 'Peserta'}, kami akan mengirimkan notifikasi begitu hasil akhir kelulusan Anda diumumkan.`,
-            icon: '/BPSIndonesia.svg',
-          });
-        } catch {}
-      } else if (permission === 'denied') {
-        setNotifFeedback(
-          'Izin notifikasi diblokir di pengaturan browser Anda. Silakan klik ikon pengaturan/gembok di sebelah alamat URL browser lalu izinkan Notifications.'
-        );
-      }
-    } catch {
-      setNotifFeedback('Gagal meminta izin notifikasi pada browser ini.');
-    }
-  };
-
   // Evaluasi status kelulusan
   const rawKelulusan = (statusData?.statusKelulusan || '').trim();
   const upperKelulusan = rawKelulusan.toUpperCase();
@@ -282,30 +212,6 @@ export default function PengumumanPage() {
       upperKelulusan.includes('LOLOS') ||
       upperKelulusan.includes('DITERIMA') ||
       upperKelulusan.includes('PASS'));
-
-  // Kirim notifikasi browser otomatis jika status kelulusan terisi & izin granted
-  useEffect(() => {
-    if (!statusData || !hasKelulusanValue || hasNotifiedResult) return;
-    if (
-      typeof window !== 'undefined' &&
-      'Notification' in window &&
-      Notification.permission === 'granted'
-    ) {
-      try {
-        const title = isLulus
-          ? 'Selamat! Anda Dinyatakan LULUS Seleksi BPS Soppeng'
-          : 'Pengumuman Hasil Seleksi BPS Kab. Soppeng';
-        const body = isLulus
-          ? `Selamat ${statusData.namaPeserta}! Anda dinyatakan LULUS (${rawKelulusan}) pada Seleksi MagangHub BPS Kab. Soppeng.`
-          : `Halo ${statusData.namaPeserta}, status hasil akhir seleksi Anda: ${rawKelulusan}.`;
-        new Notification(title, {
-          body,
-          icon: '/BPSIndonesia.svg',
-        });
-        setHasNotifiedResult(true);
-      } catch {}
-    }
-  }, [statusData, hasKelulusanValue, hasNotifiedResult, isLulus, rawKelulusan]);
 
   if (!statusData) {
     return null;
@@ -735,7 +641,7 @@ export default function PengumumanPage() {
                   </div>
                 </div>
 
-                {/* Box Menunggu Pengumuman & Izin Notifikasi */}
+                {/* Box Informasi Menunggu Pengumuman Kelulusan */}
                 <div className="bg-white border-2 border-slate-200 rounded-2xl p-5 space-y-4 shadow-2xs">
                   <div className="flex items-start gap-3">
                     <span className="w-9 h-9 rounded-xl bg-[#00AEEF]/15 text-[#0284C7] flex items-center justify-center shrink-0 mt-0.5">
@@ -748,8 +654,9 @@ export default function PengumumanPage() {
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       >
-                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="16" x2="12" y2="12" />
+                        <line x1="12" y1="8" x2="12.01" y2="8" />
                       </svg>
                     </span>
                     <div>
@@ -760,56 +667,12 @@ export default function PengumumanPage() {
                         Saat ini hasil akhir kelulusan Anda masih dalam proses rekapitulasi oleh
                         Panitia. Silakan{' '}
                         <strong className="font-semibold text-slate-800">
-                          aktifkan izin notifikasi
+                          terus pantau dan perbarui halaman website kami secara berkala
                         </strong>{' '}
-                        di bawah ini agar Anda mendapatkan pemberitahuan saat pengumuman kelulusan
-                        telah tersedia.
+                        untuk mendapatkan informasi lebih lengkap mengenai hasil kelulusan Anda.
                       </p>
                     </div>
                   </div>
-
-                  {notifPermission === 'granted' && isNotifSubscribed ? (
-                    <div className="w-full bg-[#8CC63F] text-slate-950 py-3 px-4 rounded-xl flex items-center justify-center gap-2 text-xs font-extrabold uppercase tracking-wider shadow-2xs animate-pop-in">
-                      <svg
-                        className="w-4 h-4 shrink-0"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <polyline className="animate-draw-check" points="20 6 9 17 4 12" />
-                      </svg>
-                      <span>Notifikasi Update Kelulusan Sudah Aktif</span>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleRequestNotificationPermission}
-                      className="w-full bg-[#00AEEF] hover:bg-[#0299D4] text-white font-bold uppercase tracking-wider text-xs py-3.5 px-5 rounded-xl shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      <svg
-                        className="w-4 h-4 shrink-0"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                      </svg>
-                      <span>Aktifkan Notifikasi Update Kelulusan</span>
-                    </button>
-                  )}
-
-                  {notifFeedback && (
-                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-medium text-slate-800">
-                      {notifFeedback}
-                    </div>
-                  )}
 
                   {/* Informasi Cara Mengecek Pengumuman Kelulusan Nanti via Login Email */}
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex items-start gap-2.5">
@@ -885,4 +748,3 @@ export default function PengumumanPage() {
     </main>
   );
 }
-

@@ -35,69 +35,6 @@ export default function ParticipantLobbyView({
   // State Cooldown tombol manual Cek Status Terbaru (10 detik)
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
 
-  // State Izin Notifikasi Pengumuman Kelulusan Browser
-  const [notifPermission, setNotifPermission] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('default');
-  const [isNotifSubscribed, setIsNotifSubscribed] = useState(false);
-  const [notifFeedback, setNotifFeedback] = useState<string>('');
-  const [hasNotifiedResult, setHasNotifiedResult] = useState(false);
-
-  // Cek dukungan & status izin Notification API saat komponen dimuat
-  useEffect(() => {
-    if (typeof window === 'undefined' || !('Notification' in window)) {
-      setNotifPermission('unsupported');
-      return;
-    }
-    setNotifPermission(Notification.permission);
-    try {
-      const subKey = `bps_notif_sub_${(lobbyStatus.emailPeserta || '').trim().toLowerCase()}`;
-      if (Notification.permission === 'granted' && localStorage.getItem(subKey) === 'true') {
-        setIsNotifSubscribed(true);
-      }
-    } catch {}
-  }, [lobbyStatus.emailPeserta]);
-
-  // Fungsi meminta izin notifikasi browser kepada peserta
-  const handleRequestNotificationPermission = async () => {
-    setNotifFeedback('');
-    if (typeof window === 'undefined' || !('Notification' in window)) {
-      setNotifPermission('unsupported');
-      setNotifFeedback('Browser perangkat Anda tidak mendukung fitur notifikasi sistem.');
-      return;
-    }
-
-    try {
-      const perm =
-        Notification.permission === 'granted'
-          ? 'granted'
-          : await Notification.requestPermission();
-      setNotifPermission(perm);
-      if (perm === 'granted') {
-        setIsNotifSubscribed(true);
-        try {
-          const subKey = `bps_notif_sub_${(lobbyStatus.emailPeserta || '').trim().toLowerCase()}`;
-          localStorage.setItem(subKey, 'true');
-        } catch {}
-        setNotifFeedback(
-          'Notifikasi pengumuman berhasil diaktifkan! Anda akan menerima pemberitahuan saat hasil seleksi keluar.'
-        );
-        try {
-          new Notification('Notifikasi Seleksi BPS Kab. Soppeng Aktif', {
-            body: `Halo ${lobbyStatus.namaPeserta}, notifikasi pengumuman kelulusan Anda telah aktif.`,
-            icon: '/BPSIndonesia.svg',
-          });
-        } catch {
-          // Abaikan jika gagal memunculkan test notification pada mobile browser tertentu
-        }
-      } else if (perm === 'denied') {
-        setNotifFeedback(
-          'Izin notifikasi ditolak di pengaturan browser. Silakan izinkan notifikasi pada ikon gembok di address bar browser Anda.'
-        );
-      }
-    } catch {
-      setNotifFeedback('Gagal meminta izin notifikasi pada browser ini.');
-    }
-  };
-
   // Timer Cooldown 10 detik setelah menekan tombol Cek Status Terbaru
   useEffect(() => {
     if (cooldownSeconds <= 0) return;
@@ -164,24 +101,6 @@ export default function ParticipantLobbyView({
       upperKelulusan.includes('LOLOS') ||
       upperKelulusan.includes('DITERIMA') ||
       upperKelulusan.includes('PASS'));
-
-  // Kirim notifikasi browser otomatis begitu status kelulusan terisi & izin notifikasi granted
-  // (Tanpa membocorkan status Lulus/Tidak Lulus di dalam teks notifikasi agar peserta login terlebih dahulu untuk melihat hasilnya)
-  useEffect(() => {
-    if (!hasKelulusanValue || hasNotifiedResult) return;
-    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-      try {
-        const title = 'Pengumuman Hasil Seleksi BPS Kab. Soppeng';
-        const body = `Halo ${namaPeserta}, pengumuman hasil akhir Seleksi MagangHub BPS Kab. Soppeng telah tersedia. Silakan masuk/login pada website menggunakan email Anda untuk melihat hasil kelulusan.`;
-        new Notification(title, {
-          body,
-          icon: '/BPSIndonesia.svg',
-        });
-        setHasNotifiedResult(true);
-      } catch {
-      }
-    }
-  }, [hasKelulusanValue, hasNotifiedResult, namaPeserta]);
 
   return (
     <main className="min-h-screen bg-slate-100/80 flex flex-col justify-between p-4 md:p-8 relative overflow-hidden">
@@ -304,32 +223,32 @@ export default function ParticipantLobbyView({
                   Tutup
                 </button>
               ) : (
-              <>
-              {/* Checkbox Persetujuan */}
-              <label className="flex items-start gap-3 p-3.5 bg-slate-50/70 hover:bg-sky-50/60 border border-slate-200 rounded-xl cursor-pointer select-none transition-colors">
-                <input
-                  type="checkbox"
-                  checked={isCheckboxChecked}
-                  onChange={(e) => setIsCheckboxChecked(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 accent-[#00AEEF] rounded cursor-pointer shrink-0"
-                />
-                <span className="text-xs font-medium text-slate-800 leading-relaxed">
-                  Saya telah membaca, memahami, dan menyetujui seluruh alur tahapan serta tata tertib Seleksi MagangHub BPS Kab. Soppeng Batch III Angkatan 2 Tahun 2026.
-                </span>
-              </label>
+                <>
+                  {/* Checkbox Persetujuan */}
+                  <label className="flex items-start gap-3 p-3.5 bg-slate-50/70 hover:bg-sky-50/60 border border-slate-200 rounded-xl cursor-pointer select-none transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={isCheckboxChecked}
+                      onChange={(e) => setIsCheckboxChecked(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 accent-[#00AEEF] rounded cursor-pointer shrink-0"
+                    />
+                    <span className="text-xs font-medium text-slate-800 leading-relaxed">
+                      Saya telah membaca, memahami, dan menyetujui seluruh alur tahapan serta tata tertib Seleksi MagangHub BPS Kab. Soppeng Batch III Angkatan 2 Tahun 2026.
+                    </span>
+                  </label>
 
-              {/* Tombol Setuju */}
-              <button
-                type="button"
-                disabled={!isCheckboxChecked}
-                onClick={onAcceptTerms}
-                className="w-full bg-[#8CC63F] hover:bg-[#7BB335] disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:cursor-not-allowed text-slate-950 font-bold uppercase tracking-wider text-xs py-3.5 px-6 rounded-xl shadow-xs hover:shadow transition-all cursor-pointer"
-              >
-                {isCheckboxChecked
-                  ? 'Setuju & Lanjutkan ke Status Seleksi'
-                  : 'Centang Persetujuan Terlebih Dahulu'}
-              </button>
-              </>
+                  {/* Tombol Setuju */}
+                  <button
+                    type="button"
+                    disabled={!isCheckboxChecked}
+                    onClick={onAcceptTerms}
+                    className="w-full bg-[#8CC63F] hover:bg-[#7BB335] disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:cursor-not-allowed text-slate-950 font-bold uppercase tracking-wider text-xs py-3.5 px-6 rounded-xl shadow-xs hover:shadow transition-all cursor-pointer"
+                  >
+                    {isCheckboxChecked
+                      ? 'Setuju & Lanjutkan ke Status Seleksi'
+                      : 'Centang Persetujuan Terlebih Dahulu'}
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -563,8 +482,8 @@ export default function ParticipantLobbyView({
                     strokeLinejoin="round"
                   >
                     <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                    <line x1="12" y1="16" x2="12" y2="12" />
+                    <line x1="12" y1="8" x2="12.01" y2="8" />
                   </svg>
                 </span>
                 <div>
@@ -971,9 +890,9 @@ export default function ParticipantLobbyView({
               </div>
             </div>
 
-            {/* Box Aktivasi Notifikasi di Lobby bagi peserta yang sudah selesai ujian kompetensi */}
+            {/* Box Informasi Pengumuman Kelulusan di Lobby bagi peserta yang sudah selesai ujian kompetensi */}
             {kompetensiSelesai && !hasKelulusanValue && (
-              <div className="bg-white border-2 border-slate-200/90 rounded-2xl p-5 space-y-3.5 shadow-2xs">
+              <div className="bg-white border-2 border-slate-200/90 rounded-2xl p-5 shadow-2xs">
                 <div className="flex items-start gap-3">
                   <span className="w-9 h-9 rounded-xl bg-[#00AEEF]/15 text-[#0284C7] flex items-center justify-center shrink-0 mt-0.5">
                     <svg
@@ -985,62 +904,20 @@ export default function ParticipantLobbyView({
                       strokeLinecap="round"
                       strokeLinejoin="round"
                     >
-                      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="16" x2="12" y2="12" />
+                      <line x1="12" y1="8" x2="12.01" y2="8" />
                     </svg>
                   </span>
                   <div>
                     <p className="text-xs md:text-sm font-extrabold text-slate-900">
-                      Notifikasi Pengumuman Kelulusan Akhir
+                      Informasi Pengumuman Kelulusan Akhir
                     </p>
                     <p className="text-xs text-slate-600 leading-relaxed mt-0.5">
-                      Aktifkan izin notifikasi browser agar Anda langsung mendapatkan pemberitahuan saat pengumuman kelulusan telah tersedia.
+                      Silakan terus pantau dan perbarui halaman website kami secara berkala untuk mendapatkan informasi lebih lengkap mengenai hasil kelulusan Anda.
                     </p>
                   </div>
                 </div>
-
-                {notifPermission === 'granted' && isNotifSubscribed ? (
-                  <div className="w-full bg-[#8CC63F]/20 border border-[#8CC63F]/40 py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 text-xs font-extrabold uppercase tracking-wider text-[#3F6212] animate-pop-in">
-                    <svg
-                      className="w-4 h-4 shrink-0"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <polyline className="animate-draw-check" points="20 6 9 17 4 12" />
-                    </svg>
-                    <span>Notifikasi Update Kelulusan Sudah Aktif</span>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleRequestNotificationPermission}
-                    className="w-full bg-[#00AEEF] hover:bg-[#0099D6] text-white font-bold uppercase tracking-wider text-xs py-3 px-4 rounded-xl shadow-xs hover:shadow transition-all flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <svg
-                      className="w-4 h-4 shrink-0"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                    </svg>
-                    <span>Aktifkan Notifikasi Update Kelulusan</span>
-                  </button>
-                )}
-
-                {notifFeedback && (
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-medium text-slate-800">
-                    {notifFeedback}
-                  </div>
-                )}
               </div>
             )}
 
@@ -1251,7 +1128,7 @@ export default function ParticipantLobbyView({
                     </div>
                   </div>
 
-                  {/* Box Menunggu Pengumuman & Izin Notifikasi */}
+                  {/* Box Informasi Menunggu Pengumuman Kelulusan */}
                   <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3.5">
                     <div className="flex items-start gap-3">
                       <span className="w-9 h-9 rounded-xl bg-[#00AEEF]/15 text-[#0284C7] flex items-center justify-center shrink-0 mt-0.5">
@@ -1264,8 +1141,9 @@ export default function ParticipantLobbyView({
                           strokeLinecap="round"
                           strokeLinejoin="round"
                         >
-                          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                          <circle cx="12" cy="12" r="10" />
+                          <line x1="12" y1="16" x2="12" y2="12" />
+                          <line x1="12" y1="8" x2="12.01" y2="8" />
                         </svg>
                       </span>
                       <div>
@@ -1273,53 +1151,10 @@ export default function ParticipantLobbyView({
                           Menunggu Informasi Pengumuman Kelulusan
                         </p>
                         <p className="text-xs text-slate-600 leading-relaxed mt-1">
-                          Saat ini hasil akhir kelulusan Anda masih dalam proses rekapitulasi oleh Panitia. Silakan <strong className="font-semibold text-slate-800">aktifkan izin notifikasi</strong> di bawah ini agar Anda mendapatkan pemberitahuan saat pengumuman kelulusan telah tersedia.
+                          Saat ini hasil akhir kelulusan Anda masih dalam proses rekapitulasi oleh Panitia. Silakan <strong className="font-semibold text-slate-800">terus pantau dan perbarui halaman website kami secara berkala</strong> untuk mendapatkan informasi lebih lengkap mengenai hasil kelulusan Anda.
                         </p>
                       </div>
                     </div>
-
-                    {notifPermission === 'granted' && isNotifSubscribed ? (
-                      <div className="w-full bg-[#8CC63F]/20 border border-[#8CC63F]/40 py-3 px-4 rounded-xl flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider text-[#3F6212] animate-pop-in">
-                        <svg
-                          className="w-4 h-4 shrink-0"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <polyline className="animate-draw-check" points="20 6 9 17 4 12" />
-                        </svg>
-                        <span>Notifikasi Update Kelulusan Sudah Aktif</span>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={handleRequestNotificationPermission}
-                        className="w-full bg-[#00AEEF] hover:bg-[#0099D6] text-white font-bold uppercase tracking-wider text-xs py-3.5 px-5 rounded-xl shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 cursor-pointer"
-                      >
-                        <svg
-                          className="w-4 h-4 shrink-0"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                        </svg>
-                        <span>Aktifkan Notifikasi Update Kelulusan</span>
-                      </button>
-                    )}
-
-                    {notifFeedback && (
-                      <div className="bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-medium text-slate-800">
-                        {notifFeedback}
-                      </div>
-                    )}
 
                     {/* Informasi Cara Mengecek Pengumuman Kelulusan Nanti via Login Email */}
                     <div className="bg-white border border-slate-200 rounded-xl p-3 flex items-start gap-2.5">

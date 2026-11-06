@@ -1,18 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-
-interface FinishedViewProps {
-  namaPeserta: string;
-  emailPeserta: string;
-  posisiDilamar: string;
-  terjawabCount: number;
-  totalSoal: number;
-  wawancaraApproved?: boolean;
-  statusKelulusan?: string;
-  onBackToLobby?: () => void;
-}
-
 export default function FinishedView({
   namaPeserta,
   emailPeserta,
@@ -22,61 +9,16 @@ export default function FinishedView({
   wawancaraApproved = false,
   statusKelulusan = '',
   onBackToLobby,
-}: FinishedViewProps) {
-  const [notifPermission, setNotifPermission] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('default');
-  const [isNotifSubscribed, setIsNotifSubscribed] = useState(false);
-  const [notifFeedback, setNotifFeedback] = useState('');
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !('Notification' in window)) {
-      setNotifPermission('unsupported');
-      return;
-    }
-    setNotifPermission(Notification.permission);
-    try {
-      const subKey = `bps_notif_sub_${(emailPeserta || '').trim().toLowerCase()}`;
-      if (Notification.permission === 'granted' && localStorage.getItem(subKey) === 'true') {
-        setIsNotifSubscribed(true);
-      }
-    } catch {}
-  }, [emailPeserta]);
-
-  const handleRequestNotif = async () => {
-    setNotifFeedback('');
-    if (typeof window === 'undefined' || !('Notification' in window)) {
-      setNotifPermission('unsupported');
-      setNotifFeedback('Browser perangkat Anda tidak mendukung notifikasi sistem.');
-      return;
-    }
-    try {
-      const perm =
-        Notification.permission === 'granted'
-          ? 'granted'
-          : await Notification.requestPermission();
-      setNotifPermission(perm);
-      if (perm === 'granted') {
-        setIsNotifSubscribed(true);
-        try {
-          const subKey = `bps_notif_sub_${(emailPeserta || '').trim().toLowerCase()}`;
-          localStorage.setItem(subKey, 'true');
-        } catch {}
-        setNotifFeedback('Notifikasi aktif! Anda akan diberitahu saat pengumuman kelulusan keluar.');
-        try {
-          new Notification('Notifikasi Pengumuman BPS Soppeng Aktif', {
-            body: `Halo ${namaPeserta}, izin notifikasi pengumuman kelulusan Anda telah diaktifkan.`,
-            icon: '/BPSIndonesia.svg',
-          });
-        } catch {}
-      } else if (perm === 'denied') {
-        setNotifFeedback(
-          'Izin notifikasi diblokir pada browser Anda. Silakan klik ikon pengaturan di sebelah alamat URL browser lalu izinkan Notifications.'
-        );
-      }
-    } catch {
-      setNotifFeedback('Gagal mengaktifkan izin notifikasi.');
-    }
-  };
-
+}: {
+  namaPeserta: string;
+  emailPeserta: string;
+  posisiDilamar: string;
+  terjawabCount: number;
+  totalSoal: number;
+  wawancaraApproved?: boolean;
+  statusKelulusan?: string;
+  onBackToLobby?: () => void;
+}) {
   const rawKelulusan = (statusKelulusan || '').trim();
   const upperKelulusan = rawKelulusan.toUpperCase();
   const hasKelulusanValue = rawKelulusan.length > 0;
@@ -255,7 +197,7 @@ export default function FinishedView({
             </div>
           </div>
 
-          {/* Box Hasil Kelulusan atau Aktivasi Notifikasi Pengumuman Kelulusan */}
+          {/* Box Hasil Kelulusan atau Informasi Pantau Pengumuman */}
           {hasKelulusanValue ? (
             <div
               className={`rounded-2xl border-2 p-4 text-left space-y-2 mb-6 ${
@@ -291,7 +233,7 @@ export default function FinishedView({
               </p>
             </div>
           ) : (
-            <div className="bg-slate-50 border-2 border-slate-200/90 rounded-2xl p-4 text-left space-y-3 mb-6">
+            <div className="bg-slate-50 border-2 border-slate-200/90 rounded-2xl p-4 text-left mb-6">
               <div className="flex items-start gap-3">
                 <span className="w-9 h-9 rounded-xl bg-[#00AEEF]/15 text-[#0284C7] flex items-center justify-center shrink-0 mt-0.5">
                   <svg
@@ -303,62 +245,20 @@ export default function FinishedView({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   >
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="16" x2="12" y2="12" />
+                    <line x1="12" y1="8" x2="12.01" y2="8" />
                   </svg>
                 </span>
                 <div>
                   <p className="text-xs font-extrabold uppercase tracking-wider text-slate-900">
-                    Notifikasi Pengumuman Kelulusan
+                    Informasi Pengumuman Kelulusan
                   </p>
                   <p className="text-xs text-slate-600 leading-relaxed mt-0.5">
-                    Aktifkan notifikasi browser agar Anda langsung mendapat pemberitahuan saat hasil akhir kelulusan diumumkan oleh Panitia.
+                    Silakan terus pantau dan perbarui halaman website kami secara berkala untuk mendapatkan informasi lebih lengkap mengenai hasil kelulusan Anda.
                   </p>
                 </div>
               </div>
-
-              {notifPermission === 'granted' && isNotifSubscribed ? (
-                <div className="w-full bg-[#8CC63F]/20 border border-[#8CC63F]/40 py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 text-xs font-extrabold uppercase tracking-wider text-[#3F6212] animate-pop-in">
-                  <svg
-                    className="w-4 h-4 shrink-0"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <polyline className="animate-draw-check" points="20 6 9 17 4 12" />
-                  </svg>
-                  <span>Notifikasi Pengumuman Sudah Aktif</span>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleRequestNotif}
-                  className="w-full bg-[#F7941D] hover:bg-[#E08312] text-slate-950 font-bold uppercase tracking-wider text-xs py-3 px-4 rounded-xl shadow-2xs hover:shadow transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <svg
-                    className="w-4 h-4 shrink-0"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                  </svg>
-                  <span>Aktifkan Notifikasi Pengumuman Kelulusan</span>
-                </button>
-              )}
-
-              {notifFeedback && (
-                <div className="bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-medium text-slate-700">
-                  {notifFeedback}
-                </div>
-              )}
             </div>
           )}
 
