@@ -155,10 +155,10 @@ export default function LoginPage() {
 
       // Isi state dengan data yang sudah ada di baris spreadsheet tersebut
       setEmailPeserta(json.emailPeserta || emailInput.trim());
-      if (json.namaPeserta) setNamaPeserta(json.namaPeserta);
-      if (json.teleponPeserta) setTeleponPeserta(json.teleponPeserta);
-      if (json.posisiDilamar) setPosisiDilamar(json.posisiDilamar);
-      if (json.alamatPeserta) setAlamatPeserta(json.alamatPeserta);
+      setNamaPeserta(json.namaPeserta || '');
+      setTeleponPeserta(json.teleponPeserta || '');
+      setPosisiDilamar(json.posisiDilamar || '');
+      setAlamatPeserta(json.alamatPeserta || '');
 
       // Jika sudah pernah mengisi biodata lengkap, siapkan sesi untuk langsung masuk ke Lobby / Pengumuman
       if (isProfileComplete) {

@@ -532,15 +532,15 @@ export default function UjianPage() {
       clearTimeout(pending.timer);
       pendingViolationLogRef.current = null;
 
-      const aktivitasPaste =
+      const infoPaste =
         pasteLength && pasteLength > 0
-          ? `Begitu kembali, peserta Paste teks (${pasteLength} huruf)`
-          : `Tidak ada aktivitas Paste dalam ${PASTE_WATCH_MS / 1000} detik setelah kembali`;
+          ? ` [Terdeteksi Paste ${pasteLength} karakter]`
+          : '';
 
       kirimLog(
         {
           tahap: 'detail',
-          jenisPelanggaran: `${pending.deskripsi}. ${aktivitasPaste}. (Pelanggaran ke-${pending.ke})`,
+          jenisPelanggaran: `${pending.deskripsi}${infoPaste} (Pelanggaran ke-${pending.ke})`,
         },
         useBeacon
       );

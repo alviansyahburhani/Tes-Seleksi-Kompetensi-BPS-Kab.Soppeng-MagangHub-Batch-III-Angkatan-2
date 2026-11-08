@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { POSISI_OPTIONS } from '@/constants/exam';
 
 interface QuickLoginResult {
   found: boolean;
@@ -479,12 +478,14 @@ export default function LoginView({
                     </span>
                     <div className="leading-relaxed">
                       <p className="font-bold text-slate-900">
-                        Panggilan Seleksi Terkonfirmasi
+                        {posisiDilamar
+                          ? `Email terdaftar di posisi ${posisiDilamar}`
+                          : 'Panggilan Seleksi Terkonfirmasi'}
                       </p>
                       <p className="text-[11px] text-slate-600 font-medium">
                         {emailVerifiedState === 'VERIFIED_COMPLETE'
                           ? 'Data diri sudah lengkap. Mengarahkan Anda ke halaman Lobby...'
-                          : 'Mengarahkan ke pengisian kelengkapan data daftar hadir...'}
+                          : 'Silakan lengkapi data diri Anda...'}
                       </p>
                     </div>
                   </div>
@@ -620,8 +621,15 @@ export default function LoginView({
                   <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
                     Isi Absensi Kehadiran
                   </h2>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Lengkapi data diri Anda sebelum memulai tahapan seleksi
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                    {posisiDilamar ? (
+                      <>
+                        Email terdaftar di posisi{' '}
+                        <strong className="font-bold text-[#0284C7]">{posisiDilamar}</strong>, silakan lengkapi data diri Anda
+                      </>
+                    ) : (
+                      'Lengkapi data diri Anda sebelum memulai tahapan seleksi'
+                    )}
                   </p>
                 </div>
 
@@ -693,23 +701,31 @@ export default function LoginView({
                     </div>
                   </div>
 
-                  <div>
-                    <select
+                  <div className="relative">
+                    <input
+                      type="text"
                       required
+                      readOnly
                       value={posisiDilamar}
-                      onChange={(e) => setPosisiDilamar(e.target.value)}
-                      className={`w-full px-4 py-2.5 bg-slate-100/80 border border-slate-200/90 rounded-xl text-sm font-medium focus:outline-none focus:bg-white focus:border-[#00AEEF] focus:ring-3 focus:ring-[#00AEEF]/15 transition-all cursor-pointer ${posisiDilamar ? 'text-slate-900' : 'text-slate-400'
-                        }`}
-                    >
-                      <option value="" disabled className="text-slate-400">
-                        -- Pilih Posisi yang Dilamar --
-                      </option>
-                      {POSISI_OPTIONS.map((posisi) => (
-                        <option key={posisi} value={posisi} className="text-slate-900 font-medium">
-                          {posisi}
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="Posisi yang Dilamar (Otomatis dari Database)"
+                      title="Posisi yang dilamar sesuai data pendaftaran MagangHub"
+                      className="w-full px-4 py-2.5 pr-9 bg-slate-200/70 border border-slate-300 rounded-xl text-sm font-semibold text-slate-700 cursor-not-allowed focus:outline-none"
+                    />
+                    {posisiDilamar && (
+                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-[#8CC63F] text-slate-950 flex items-center justify-center">
+                        <svg
+                          className="w-3 h-3"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      </span>
+                    )}
                   </div>
 
                   <div>
@@ -812,7 +828,13 @@ export default function LoginView({
                     Anda Terdaftar Mengikuti Seleksi!
                   </h2>
                   <p className="text-xs leading-relaxed text-slate-900/85 font-medium">
-                    Silakan lengkapi Nama Lengkap, Nomor WhatsApp, Posisi yang dilamar, serta Alamat Domisili Anda pada formulir di samping.
+                    {posisiDilamar ? (
+                      <>
+                        Email terdaftar di posisi <strong className="font-bold underline">{posisiDilamar}</strong>. Silakan lengkapi Nama Lengkap, Nomor WhatsApp, serta Alamat Domisili Anda pada formulir di samping.
+                      </>
+                    ) : (
+                      'Silakan lengkapi Nama Lengkap, Nomor WhatsApp, serta Alamat Domisili Anda pada formulir di samping.'
+                    )}
                   </p>
                   <div className="pt-3">
                     <button

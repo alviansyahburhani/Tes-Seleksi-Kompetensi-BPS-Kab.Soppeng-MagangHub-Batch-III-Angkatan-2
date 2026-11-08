@@ -400,20 +400,22 @@ export async function POST(request: Request) {
         );
       }
 
-      if (!posisiDilamar || !posisiDilamar.trim()) {
+      const existingRow = existingRows[foundIndex];
+      const existingRowNumber = foundIndex + 2;
+
+      const dbPosisi = (existingRow[3] || '').toString().trim();
+      const finalPosisi = dbPosisi || (posisiDilamar || '').toString().trim();
+
+      if (!finalPosisi) {
         return NextResponse.json(
-          { success: false, error: 'Silakan pilih posisi yang Anda lamar terlebih dahulu.' },
+          { success: false, error: 'Posisi yang dilamar belum ditetapkan pada database.' },
           { status: 400 }
         );
       }
 
-      const existingRow = existingRows[foundIndex];
-      const existingRowNumber = foundIndex + 2;
-
       const finalNama = namaPeserta.trim();
       const finalEmail = (existingRow[1] || emailPeserta).toString().trim();
       const finalTelepon = (teleponPeserta || '').toString().trim();
-      const finalPosisi = posisiDilamar.trim();
       const finalAlamat = alamatPeserta.trim();
 
       // Update Kolom A s/d E pada baris email peserta yang sudah ada di Monitoring_Peserta
