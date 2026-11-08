@@ -69,7 +69,10 @@ export function parseSoalRow(row: any[], index: number): ParsedSoalRow | null {
       combined.includes('GAMBAR') ||
       combined.includes('PUBLISITAS') ||
       combined.includes('HUMAS') ||
-      combined.includes('KEHUMASAN');
+      combined.includes('KEHUMASAN') ||
+      combined.includes('INSTAGRAM') ||
+      combined.includes('MEDIA SOSIAL') ||
+      combined.includes('MEDSOS');
     const isSheet =
       combined.includes('SPREADSHEET') ||
       combined.includes('GOOGLE SHEET') ||
@@ -127,7 +130,10 @@ export function isSoalMatchPosisi(kategoriSoal: string, posisiDilamar: string): 
     (kat.includes('PUBLISITAS') ||
       kat.includes('HUMAS') ||
       kat.includes('KEHUMASAN') ||
-      kat.includes('DESAIN'))
+      kat.includes('DESAIN') ||
+      kat.includes('MEDIA SOSIAL') ||
+      kat.includes('MEDSOS') ||
+      kat.includes('INSTAGRAM'))
   ) {
     return true;
   }
