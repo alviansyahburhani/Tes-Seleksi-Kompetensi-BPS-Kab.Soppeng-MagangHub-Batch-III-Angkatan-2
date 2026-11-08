@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { PILIHAN_OPSI_HURUF } from '@/constants/exam';
 import { DataPraktik, Soal } from '@/types/exam';
 import { getTipeBadge } from '@/utils/examHelper';
@@ -48,6 +49,119 @@ export default function QuestionCard({
 
   const badgeTextClass =
     activeSoal.tipe === 'PG' ? 'text-white' : 'text-slate-950';
+
+  // State untuk modal zoom gambar soal (lightbox)
+  const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+  const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({});
+
+  // Reset state gambar & modal zoom setiap kali nomor/ID soal berganti
+  useEffect(() => {
+    setBrokenImages({});
+    setZoomedImage(null);
+  }, [activeSoal.id]);
+
+  // Tipe blok konten soal (teks atau gambar)
+  type QuestionBlock =
+    | { type: 'text'; content: string }
+    | { type: 'image'; url: string };
+
+  // Helper untuk memecah teks pertanyaan & gambar menjadi blok-blok berurutan
+  // Gambar akan tampil presisi tepat di posisi/bagian di mana gambar tersebut ditulis di teks soal
+  const parseQuestionBlocks = (rawText: string): QuestionBlock[] => {
+    let cleanText = (rawText || '').trim();
+
+    // Bersihkan tag text<br>, <br>, <p> yang tidak sengaja terbawa saat copy-paste dari markdown/AI
+    cleanText = cleanText.replace(/^text\b\s*(?:<br\s*\/?>)?/gi, '');
+    cleanText = cleanText.replace(/\btext<br\s*\/?>/gi, '');
+    cleanText = cleanText.replace(/<br\s*\/?>/gi, '\n');
+    cleanText = cleanText.replace(/<\/?p>/gi, '\n');
+    cleanText = cleanText.replace(/&nbsp;/gi, ' ');
+
+    // Regex mencakup:
+    // 1. Markdown: ![alt](url)
+    // 2. Tag: [GAMBAR: url] atau [IMG: url]
+    // 3. Path langsung berekstensi gambar: /tabel-nota-a.png, https://.../foto.jpg
+    const imageTokenRegex = /!\[.*?\]\((https?:\/\/[^\s<>]+\.(?:png|jpe?g|webp|gif|svg)(?:\?[^\s<>]*)?|\/[a-zA-Z0-9_\-\.\/]+\.(?:png|jpe?g|webp|gif|svg)(?:\?[^\s<>]*)?)\)|\[(?:GAMBAR|IMG|IMAGE):\s*(https?:\/\/[^\s<>]+\.(?:png|jpe?g|webp|gif|svg)(?:\?[^\s<>]*)?|\/[a-zA-Z0-9_\-\.\/]+\.(?:png|jpe?g|webp|gif|svg)(?:\?[^\s<>]*)?)\s*\]|(https?:\/\/[^\s<>]+\.(?:png|jpe?g|webp|gif|svg)(?:\?[^\s<>]*)?|\/[a-zA-Z0-9_\-\.\/]+\.(?:png|jpe?g|webp|gif|svg)(?:\?[^\s<>]*)?)/gi;
+
+    const blocks: QuestionBlock[] = [];
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = imageTokenRegex.exec(cleanText)) !== null) {
+      const matchStart = match.index;
+      const matchEnd = match.index + match[0].length;
+
+      // Ambil potongan teks sebelum gambar jika ada
+      if (matchStart > lastIndex) {
+        const textChunk = cleanText.slice(lastIndex, matchStart).trim();
+        if (textChunk) {
+          blocks.push({ type: 'text', content: textChunk });
+        }
+      }
+
+      // Ambil URL gambar dari token yang cocok
+      const url = (match[1] || match[2] || match[3] || match[0]).trim();
+      if (url) {
+        blocks.push({ type: 'image', url });
+      }
+
+      lastIndex = matchEnd;
+    }
+
+    // Ambil sisa teks setelah gambar terakhir jika ada
+    if (lastIndex < cleanText.length) {
+      const remainingText = cleanText.slice(lastIndex).trim();
+      if (remainingText) {
+        blocks.push({ type: 'text', content: remainingText });
+      }
+    }
+
+    // Fallback jika tidak ada gambar sama sekali
+    if (blocks.length === 0 && cleanText) {
+      blocks.push({ type: 'text', content: cleanText });
+    }
+
+    return blocks;
+  };
+
+  // Helper untuk merender teks pertanyaan dengan link umum yang dapat diklik
+  const renderFormattedText = (text: string) => {
+    const urlRegex = /(https?:\/\/[^\s<]+)/g;
+    const parts = text.split(urlRegex);
+    if (parts.length === 1) return text;
+
+    return parts.map((part, index) => {
+      if (part.match(/^https?:\/\//i)) {
+        return (
+          <a
+            key={index}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[#00AEEF] underline hover:text-[#0299D4] break-all inline-flex items-center gap-1 font-semibold"
+          >
+            <span>{part}</span>
+            <svg
+              className="w-3.5 h-3.5 inline shrink-0"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+          </a>
+        );
+      }
+      return part;
+    });
+  };
+
+  const questionBlocks = parseQuestionBlocks(activeSoal.pertanyaan);
 
   return (
     <div className="bg-white rounded-3xl border-2 border-slate-200/90 shadow-lg overflow-hidden">
@@ -138,16 +252,49 @@ export default function QuestionCard({
               )}
             </div>
 
-            {activeSoal.tipe === 'DESKRIPSI' ? (
-              <MathText
-                text={activeSoal.pertanyaan}
-                className="text-slate-900 font-bold text-base md:text-lg leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
-              />
-            ) : (
-            <p className="text-slate-900 font-bold text-base md:text-lg leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
-              {activeSoal.pertanyaan}
-            </p>
-            )}
+            {/* Isi Teks & Gambar Soal (Mengalir presisi sesuai letak susunan yang ditulis di sel soal) */}
+            <div className="space-y-4">
+              {questionBlocks.map((block, idx) => {
+                if (block.type === 'text') {
+                  if (activeSoal.tipe === 'DESKRIPSI') {
+                    return (
+                      <MathText
+                        key={idx}
+                        text={block.content}
+                        className="text-slate-900 font-bold text-base md:text-lg leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
+                      />
+                    );
+                  }
+                  return (
+                    <div
+                      key={idx}
+                      className="text-slate-900 font-bold text-base md:text-lg leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
+                    >
+                      {renderFormattedText(block.content)}
+                    </div>
+                  );
+                }
+
+                if (block.type === 'image') {
+                  if (brokenImages[block.url]) return null;
+                  return (
+                    <div key={idx} className="my-2 flex justify-start">
+                      <img
+                        src={block.url}
+                        alt=""
+                        onError={() =>
+                          setBrokenImages((prev) => ({ ...prev, [block.url]: true }))
+                        }
+                        onClick={() => setZoomedImage(block.url)}
+                        className="max-w-full h-auto max-h-[520px] object-contain rounded-xl cursor-zoom-in transition-transform duration-150 hover:opacity-95"
+                      />
+                    </div>
+                  );
+                }
+
+                return null;
+              })}
+            </div>
           </div>
         </div>
 
@@ -173,18 +320,16 @@ export default function QuestionCard({
                     key={optIdx}
                     type="button"
                     onClick={() => onSelectAnswer(activeSoal.id, huruf)}
-                    className={`w-full text-left px-4 py-3.5 rounded-2xl border-2 text-sm md:text-base flex items-center gap-3.5 transition-all duration-200 cursor-pointer overflow-hidden active:scale-[0.985] ${
-                      isSelected
-                        ? 'bg-[#00AEEF] border-[#00AEEF] text-white font-bold shadow-md scale-[1.008]'
-                        : 'bg-white hover:bg-[#F0F9FF] hover:translate-x-1 border-slate-200/90 hover:border-[#00AEEF]/50 text-slate-800 font-semibold shadow-2xs'
-                    }`}
+                    className={`w-full text-left px-4 py-3.5 rounded-2xl border-2 text-sm md:text-base flex items-center gap-3.5 transition-all duration-200 cursor-pointer overflow-hidden active:scale-[0.985] ${isSelected
+                      ? 'bg-[#00AEEF] border-[#00AEEF] text-white font-bold shadow-md scale-[1.008]'
+                      : 'bg-white hover:bg-[#F0F9FF] hover:translate-x-1 border-slate-200/90 hover:border-[#00AEEF]/50 text-slate-800 font-semibold shadow-2xs'
+                      }`}
                   >
                     <span
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-extrabold shrink-0 transition-all duration-200 ${
-                        isSelected
-                          ? 'bg-[#F7941D] text-slate-950 shadow-xs scale-105'
-                          : 'bg-slate-100 text-slate-700 border border-slate-200'
-                      }`}
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-extrabold shrink-0 transition-all duration-200 ${isSelected
+                        ? 'bg-[#F7941D] text-slate-950 shadow-xs scale-105'
+                        : 'bg-slate-100 text-slate-700 border border-slate-200'
+                        }`}
                     >
                       {huruf}
                     </span>
@@ -375,6 +520,46 @@ export default function QuestionCard({
           </button>
         </div>
       </div>
+
+      {/* Lightbox Modal Zoom Gambar Soal */}
+      {zoomedImage && (
+        <div
+          onClick={() => setZoomedImage(null)}
+          className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-xs flex flex-col items-center justify-center p-4 cursor-zoom-out animate-modal-pop"
+        >
+          <div className="relative max-w-5xl max-h-[90vh] flex flex-col items-center">
+            <div className="w-full flex justify-between items-center text-white mb-2 px-1">
+              <span className="text-xs font-semibold text-slate-300">
+                Klik di mana saja atau tombol X untuk menutup
+              </span>
+              <button
+                type="button"
+                onClick={() => setZoomedImage(null)}
+                className="bg-white/20 hover:bg-white/30 text-white rounded-full p-1.5 transition-all cursor-pointer"
+              >
+                <svg
+                  className="w-5 h-5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <img
+              src={zoomedImage}
+              alt="Preview Zoom Lampiran Soal"
+              className="max-w-full max-h-[82vh] object-contain rounded-xl bg-white shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
