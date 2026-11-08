@@ -5,7 +5,9 @@ import { getCachedMonitoringRows, invalidateMonitoringCache } from '@/lib/sheets
 import {
   checkAccountResetStatus,
   clearAccountResetResolution,
+  clearParticipantServerState,
   getServerParticipantSession,
+  hasParticipantExamMemory,
   isKompetensiApproved,
   registerServerParticipantSession,
   requestAccountReset,
@@ -160,6 +162,7 @@ export async function GET(request: Request) {
     const rowParam = searchParams.get('rowNumber');
     const emailParam = (searchParams.get('email') || '').trim().toLowerCase();
     const namaParam = (searchParams.get('nama') || '').trim().toLowerCase();
+    const modeParam = (searchParams.get('mode') || '').trim().toLowerCase();
 
     // Mengambil data Monitoring dari In-Memory Server Cache (maksimal 1x hit Google Sheets per 5 detik)
     const rows = await getCachedMonitoringRows();
@@ -200,8 +203,40 @@ export async function GET(request: Request) {
     const rTelepon = (targetRow[2] || '').toString().trim();
     const rPosisi = (targetRow[3] || '').toString().trim();
     const rAlamat = (targetRow[4] || '').toString().trim();
+    const rWaktuMulai = (targetRow[5] || '').toString().trim();
     const { statusUjian, statusWawancara } = extractStatusUjianDanWawancara(targetRow);
     const statusKelulusan = extractStatusKelulusan(targetRow);
+
+    // Karena Email (Kolom B) & Posisi (Kolom D) terisi dari awal, apabila Nama (Kolom A) kosong,
+    // berarti data peserta telah dihapus/di-reset oleh Admin di Google Sheets.
+    if (!rNama) {
+      clearParticipantServerState(foundRowNumber, rEmail || emailParam, namaParam);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Data kehadiran peserta telah dihapus atau di-reset dari database.',
+        },
+        { status: 404 }
+      );
+    }
+
+    // Jika Kolom Waktu Mulai (F) & Status Ujian (J) di Sheet kosong, namun di RAM server masih ada riwayat sesi ujian,
+    // berarti Admin baru saja menghapus kolom ujian peserta tersebut di Google Sheets.
+    if (!rWaktuMulai && !statusUjian) {
+      if (hasParticipantExamMemory(foundRowNumber, rEmail, rNama)) {
+        clearParticipantServerState(foundRowNumber, rEmail, rNama);
+      }
+      if (modeParam === 'ujian') {
+        clearParticipantServerState(foundRowNumber, rEmail, rNama);
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Sesi ujian peserta telah di-reset oleh Admin dari database.',
+          },
+          { status: 404 }
+        );
+      }
+    }
 
     const upperUjian = statusUjian.toUpperCase();
     const upperWawancara = statusWawancara.toUpperCase();
@@ -297,13 +332,14 @@ export async function POST(request: Request) {
 
     const { sheets, spreadsheetId } = await getGoogleSheetsInstance();
 
-    // Ambil data dari Monitoring_Peserta via RAM Cache (menghemat read request Google Sheets)
+    // Ambil data terbaru dari Monitoring_Peserta (forceFresh = true saat login/register/mulai ujian
+    // agar perubahan atau penghapusan baris di Google Sheets langsung terbaca seketika)
     let existingRows: any[] = [];
     try {
       if (!isMonitoringSheetVerified) {
         await createMonitoringSheetIfMissing(sheets, spreadsheetId);
       }
-      existingRows = await getCachedMonitoringRows();
+      existingRows = await getCachedMonitoringRows(true);
     } catch {
       await createMonitoringSheetIfMissing(sheets, spreadsheetId);
       existingRows = [];
@@ -343,11 +379,21 @@ export async function POST(request: Request) {
       const rTelepon = (existingRow[2] || '').toString().trim();
       const rPosisi = (existingRow[3] || '').toString().trim();
       const rAlamat = (existingRow[4] || '').toString().trim();
+      const rWaktuMulai = (existingRow[5] || '').toString().trim();
       const { statusUjian, statusWawancara } = extractStatusUjianDanWawancara(existingRow);
       const statusKelulusan = extractStatusKelulusan(existingRow);
 
       // Cek apakah peserta sudah melengkapi seluruh biodata wajib (Nama, No. Telepon, Posisi, Alamat)
       const isProfileComplete = Boolean(rNama && rTelepon && rPosisi && rAlamat);
+
+      // Jika biodata di Sheet kosong/belum lengkap (mis. baru dihapus Admin) ATAU kolom ujian (F & J) kosong
+      // sementara di RAM server masih ada riwayat sesi ujian lama, bersihkan seluruh state RAM peserta ini!
+      if (
+        !isProfileComplete ||
+        (!rWaktuMulai && !statusUjian && hasParticipantExamMemory(existingRowNumber, rEmail, rNama))
+      ) {
+        clearParticipantServerState(existingRowNumber, rEmail, rNama);
+      }
 
       const upperUjian = statusUjian.toUpperCase();
       const upperWawancara = statusWawancara.toUpperCase();
@@ -358,12 +404,9 @@ export async function POST(request: Request) {
         upperWawancara.includes('SUDAH') ||
         upperWawancara.includes('SELESAI') ||
         upperWawancara.includes('APPROVED');
-      const kompetensiApproved = isKompetensiApproved(
-        existingRowNumber,
-        rEmail,
-        rNama,
-        statusUjian
-      );
+      const kompetensiApproved = isProfileComplete
+        ? isKompetensiApproved(existingRowNumber, rEmail, rNama, statusUjian)
+        : false;
 
       return NextResponse.json({
         success: true,
@@ -403,6 +446,12 @@ export async function POST(request: Request) {
       const existingRow = existingRows[foundIndex];
       const existingRowNumber = foundIndex + 2;
 
+      const prevNama = (existingRow[0] || '').toString().trim();
+      const prevTelepon = (existingRow[2] || '').toString().trim();
+      const prevAlamat = (existingRow[4] || '').toString().trim();
+      const prevWaktuMulai = (existingRow[5] || '').toString().trim();
+      const wasProfileIncomplete = !(prevNama && prevTelepon && prevAlamat);
+
       const dbPosisi = (existingRow[3] || '').toString().trim();
       const finalPosisi = dbPosisi || (posisiDilamar || '').toString().trim();
 
@@ -438,6 +487,21 @@ export async function POST(request: Request) {
 
       const { statusUjian, statusWawancara } = extractStatusUjianDanWawancara(existingRow);
       const statusKelulusan = extractStatusKelulusan(existingRow);
+
+      // Apabila peserta baru mengisi biodata (karena sebelumnya kosong / baru dihapus Admin)
+      // atau kolom ujian di Sheet kosong padahal di RAM masih ada memori ujian lama,
+      // pastikan state Approve & Sesi lama di RAM server di-reset agar mulai dari status "Menunggu Approve Admin".
+      if (
+        wasProfileIncomplete ||
+        (!prevWaktuMulai &&
+          !statusUjian &&
+          hasParticipantExamMemory(existingRowNumber, finalEmail, finalNama))
+      ) {
+        clearParticipantServerState(existingRowNumber, finalEmail, finalNama);
+        if (prevNama && prevNama !== finalNama) {
+          clearParticipantServerState(existingRowNumber, finalEmail, prevNama);
+        }
+      }
 
       const upperUjian = statusUjian.toUpperCase();
       const upperWawancara = statusWawancara.toUpperCase();
@@ -483,7 +547,7 @@ export async function POST(request: Request) {
     // =========================================================================
     const targetRowNumber = inputRowNumber || (foundIndex !== -1 ? foundIndex + 2 : null);
     const existingRow = foundIndex !== -1 ? existingRows[foundIndex] : null;
-    const currentStatusUjian = (existingRow?.[9] || '').toString().trim();
+    const { statusUjian: currentStatusUjian } = extractStatusUjianDanWawancara(existingRow || []);
     const upperUjian = currentStatusUjian.toUpperCase();
 
     if (upperUjian.includes('SELESAI')) {
@@ -708,16 +772,38 @@ export async function PUT(request: Request) {
     // Cek keberadaan baris peserta via Cache RAM (tanpa menambah beban read request ke Google Sheets API)
     const cachedRows = await getCachedMonitoringRows();
     const rowIndex = Number(rowNumber) - 2;
+    if (cachedRows.length > 0 && (rowIndex < 0 || rowIndex >= cachedRows.length)) {
+      clearParticipantServerState(Number(rowNumber), emailPeserta, namaPeserta);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Data peserta telah dihapus dari database Monitoring_Peserta.',
+        },
+        { status: 404 }
+      );
+    }
+
     if (rowIndex >= 0 && rowIndex < cachedRows.length) {
       const checkRow = cachedRows[rowIndex] || [];
       const existingNama = (checkRow[0] || '').toString().trim();
       const existingEmail = (checkRow[1] || '').toString().trim();
+      const existingWaktuMulai = (checkRow[5] || '').toString().trim();
+      const { statusUjian: existingStatusUjian } = extractStatusUjianDanWawancara(checkRow);
 
-      if (!existingNama && !existingEmail) {
+      // Karena Email (Kolom B) & Posisi (Kolom D) sudah terisi dari awal,
+      // peserta yang sedang di /ujian dianggap telah dihapus/di-reset datanya apabila:
+      // 1. Kolom A (Nama Peserta) kosong, ATAU
+      // 2. Kolom F (Waktu Mulai) DAN Kolom J (Status Ujian) dikosongkan oleh Admin
+      if (!existingNama || (!existingWaktuMulai && !existingStatusUjian)) {
+        clearParticipantServerState(
+          Number(rowNumber),
+          existingEmail || emailPeserta,
+          existingNama || namaPeserta
+        );
         return NextResponse.json(
           {
             success: false,
-            error: 'Data peserta telah dihapus dari database Monitoring_Peserta.',
+            error: 'Data peserta telah dihapus atau di-reset dari database Monitoring_Peserta.',
           },
           { status: 404 }
         );

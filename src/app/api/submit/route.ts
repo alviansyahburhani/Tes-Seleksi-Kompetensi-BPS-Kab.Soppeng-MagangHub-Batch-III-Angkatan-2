@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import { getGoogleSheetsInstance } from '@/lib/googleSheets';
 import { isSoalMatchPosisi, parseSoalRow, ParsedSoalRow } from '@/utils/examHelper';
 import { getTargetResultSheetName, SHEET_NAMES } from '@/constants/exam';
-import { invalidateMonitoringCache } from '@/lib/sheetsCache';
+import { getCachedMonitoringRows, invalidateMonitoringCache } from '@/lib/sheetsCache';
 import {
+  clearParticipantServerState,
   getServerParticipantSession,
   hasParticipantAlreadySubmitted,
   markParticipantSubmitted,
@@ -118,6 +119,45 @@ export async function POST(request: Request) {
       sisaWaktuStr,
     } = await request.json();
 
+    const serverSession = getServerParticipantSession(emailPeserta, namaPeserta);
+    const targetRowCheck = monitoringRowNumber || serverSession?.monitoringRowNumber;
+
+    // 0. CEK VALIDITAS DATA PESERTA DI MONITORING_PESERTA:
+    // Jika Admin telah menghapus Nama (Kolom A) atau menghapus Waktu Mulai & Status Ujian (Kolom F & J),
+    // tolak pengumpulan jawaban dan keluarkan peserta dari halaman ujian.
+    if (targetRowCheck) {
+      const cachedRows = await getCachedMonitoringRows();
+      const rowIdx = Number(targetRowCheck) - 2;
+      if (rowIdx >= 0 && rowIdx < cachedRows.length) {
+        const checkRow = cachedRows[rowIdx] || [];
+        const existingNama = (checkRow[0] || '').toString().trim();
+        const existingEmail = (checkRow[1] || '').toString().trim();
+        const existingWaktuMulai = (checkRow[5] || '').toString().trim();
+        const existingStatusUjian = (
+          checkRow[9] ||
+          checkRow[8] ||
+          ''
+        )
+          .toString()
+          .trim();
+
+        if (!existingNama || (!existingWaktuMulai && !existingStatusUjian)) {
+          clearParticipantServerState(
+            Number(targetRowCheck),
+            existingEmail || emailPeserta,
+            existingNama || namaPeserta
+          );
+          return NextResponse.json(
+            {
+              success: false,
+              error: 'Sesi ujian atau data peserta telah dihapus/di-reset oleh Admin.',
+            },
+            { status: 404 }
+          );
+        }
+      }
+    }
+
     // 1. CEK IDEMPOTENCY (ANTI-DOUBLE SUBMIT):
     // Jika peserta dengan email/nama ini sudah pernah mengumpulkan jawaban, tolak penulisan ganda
     if (hasParticipantAlreadySubmitted(emailPeserta, namaPeserta)) {
@@ -139,7 +179,6 @@ export async function POST(request: Request) {
     // 2. ANTI-TAMPERING VALIDATION (WAKTU & PELANGGARAN DARI SERVER):
     // Ambil jumlah pelanggaran dan sisa waktu dari catatan server jika tersedia,
     // sehingga peserta tidak bisa mereset angka pelanggaran ke 0 lewat Inspect Element.
-    const serverSession = getServerParticipantSession(emailPeserta, namaPeserta);
     const clientViolations = Number(totalPelanggaran) || 0;
     const verifiedViolations = serverSession
       ? Math.max(clientViolations, serverSession.violationsCount)
