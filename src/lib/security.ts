@@ -138,6 +138,8 @@ export function registerServerParticipantSession(params: {
   if (nameKey && nameKey !== key) {
     globalForSecurity.bpsParticipantSessions!.set(nameKey, session);
   }
+  if (key) globalForSecurity.bpsSubmittedKeys!.delete(key);
+  if (nameKey) globalForSecurity.bpsSubmittedKeys!.delete(nameKey);
   return session;
 }
 
@@ -241,6 +243,87 @@ export function isKompetensiApproved(
   if (nameKey && keySet.has(nameKey)) return true;
 
   return false;
+}
+
+/**
+ * Mengecek apakah di memori server (RAM) masih tersimpan riwayat sesi ujian atau status submit
+ * untuk peserta tertentu (digunakan untuk mendeteksi apakah data ujian di Sheet baru saja dihapus/di-reset Admin).
+ */
+export function hasParticipantExamMemory(
+  rowNumber?: number | null,
+  email?: string,
+  nama?: string
+): boolean {
+  const emailKey = normalizeParticipantKey(email, '');
+  const nameKey = normalizeParticipantKey('', nama);
+  const submittedSet = globalForSecurity.bpsSubmittedKeys!;
+  const sessionStore = globalForSecurity.bpsParticipantSessions!;
+
+  if (emailKey && (submittedSet.has(emailKey) || sessionStore.has(emailKey))) return true;
+  if (nameKey && (submittedSet.has(nameKey) || sessionStore.has(nameKey))) return true;
+
+  if (rowNumber) {
+    for (const sess of sessionStore.values()) {
+      if (sess.monitoringRowNumber && Number(sess.monitoringRowNumber) === Number(rowNumber)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Membersihkan seluruh state in-memory di server (Approve Kompetensi, Sesi Ujian, Status Submit, Reset Akun)
+ * ketika data peserta di Monitoring_Peserta dihapus / di-reset oleh Admin.
+ */
+export function clearParticipantServerState(
+  rowNumber?: number | null,
+  email?: string,
+  nama?: string
+): void {
+  const rowSet = globalForSecurity.bpsApprovedKompetensiRows!;
+  const keySet = globalForSecurity.bpsApprovedKompetensiKeys!;
+  const submittedSet = globalForSecurity.bpsSubmittedKeys!;
+  const sessionStore = globalForSecurity.bpsParticipantSessions!;
+
+  const emailKey = normalizeParticipantKey(email, '');
+  const nameKey = normalizeParticipantKey('', nama);
+
+  if (rowNumber) {
+    rowSet.delete(Number(rowNumber));
+  }
+  if (emailKey) {
+    keySet.delete(emailKey);
+    submittedSet.delete(emailKey);
+  }
+  if (nameKey) {
+    keySet.delete(nameKey);
+    submittedSet.delete(nameKey);
+  }
+
+  for (const [k, sess] of sessionStore.entries()) {
+    const sessEmailKey = normalizeParticipantKey(sess.emailPeserta, '');
+    const sessNameKey = normalizeParticipantKey('', sess.namaPeserta);
+    const matchRow =
+      rowNumber &&
+      sess.monitoringRowNumber &&
+      Number(sess.monitoringRowNumber) === Number(rowNumber);
+    const matchEmail = emailKey && (k === emailKey || sessEmailKey === emailKey);
+    const matchName = nameKey && (k === nameKey || sessNameKey === nameKey);
+
+    if (matchRow || matchEmail || matchName) {
+      sessionStore.delete(k);
+      if (sessEmailKey) {
+        keySet.delete(sessEmailKey);
+        submittedSet.delete(sessEmailKey);
+      }
+      if (sessNameKey) {
+        keySet.delete(sessNameKey);
+        submittedSet.delete(sessNameKey);
+      }
+    }
+  }
 }
 
 /**

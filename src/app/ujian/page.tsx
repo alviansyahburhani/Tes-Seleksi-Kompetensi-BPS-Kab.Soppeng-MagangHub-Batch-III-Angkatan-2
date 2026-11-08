@@ -307,6 +307,10 @@ export default function UjianPage() {
             sisaWaktuStr,
           }),
         });
+        if (res.status === 404) {
+          forceEjectMissingParticipant();
+          return;
+        }
         const json = await res.json();
         if (json.success) {
           localStorage.removeItem(EXAM_SESSION_STORAGE_KEY);
@@ -398,12 +402,33 @@ export default function UjianPage() {
         setLoading(false);
       }
     },
-    [terjawabCount]
+    [terjawabCount, forceEjectMissingParticipant]
   );
 
   // 4. Timer Countdown + Sinkronisasi Sisa Waktu ke Sheet Monitoring_Peserta setiap 2 menit (120 detik)
+  //    serta pengecekan validitas sesi ke RAM Cache server setiap 15 detik agar langsung keluar jika di-reset Admin
   useEffect(() => {
     if (!isSessionReady || isFinished) return;
+
+    const verifyActiveParticipantInSheet = () => {
+      const params = new URLSearchParams();
+      if (monitoringRowRef.current) params.set('rowNumber', String(monitoringRowRef.current));
+      if (identitasRef.current.emailPeserta) params.set('email', identitasRef.current.emailPeserta);
+      if (identitasRef.current.namaPeserta) params.set('nama', identitasRef.current.namaPeserta);
+      params.set('mode', 'ujian');
+
+      fetch(`/api/start?${params.toString()}`, { cache: 'no-store' })
+        .then((res) => {
+          if (res.status === 404) {
+            forceEjectMissingParticipant();
+          }
+        })
+        .catch(() => {});
+    };
+
+    // Cek segera saat halaman /ujian dibuka / dipulihkan
+    verifyActiveParticipantInSheet();
+
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
@@ -437,6 +462,8 @@ export default function UjianPage() {
               }
             })
             .catch(() => {});
+        } else if (nextTime % 15 === 0) {
+          verifyActiveParticipantInSheet();
         }
         return nextTime;
       });
