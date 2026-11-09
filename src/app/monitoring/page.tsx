@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { POSISI_OPTIONS } from '@/constants/exam';
 import { formatTime } from '@/utils/examHelper';
-import { playViolationAlarm, stopViolationAlarm } from '@/utils/mediaHelper';
 import type { ActiveViolationAlert } from '@/lib/violationAlertStore';
 
 interface PesertaMonitoring {
@@ -40,7 +39,7 @@ export default function MonitoringAdminPage() {
   // Menu Sidebar Aktif & Mode Collapse (Hide tapi tetap muncul Icon)
   const [activeTab, setActiveTab] = useState<SidebarMenuTab>('MONITORING');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isIdentityBlurred, setIsIdentityBlurred] = useState(false);
+  const [isIdentityBlurred, setIsIdentityBlurred] = useState(true);
   const [isKompetensiEmailBlurred, setIsKompetensiEmailBlurred] = useState(true);
   const [actionLoadingRow, setActionLoadingRow] = useState<number | 'ALL' | null>(null);
 
@@ -53,9 +52,6 @@ export default function MonitoringAdminPage() {
   const [filterPosisi, setFilterPosisi] = useState<string>('SEMUA');
   const [filterStatus, setFilterStatus] = useState<'SEMUA' | 'AKTIF' | 'SELESAI'>('SEMUA');
   const [searchQuery, setSearchQuery] = useState('');
-
-  // Simpan ID alert yang sudah pernah memicu bunyi atau sudah dimatikan oleh Admin
-  const silencedAlertIdsRef = useRef<Set<string>>(new Set());
 
   // Ambil data monitoring dari server (/api/monitoring) dengan menyertakan header x-admin-pin
   const fetchMonitoringData = useCallback(
@@ -77,7 +73,6 @@ export default function MonitoringAdminPage() {
           setIsAuthorized(false);
           setPinError('PIN Admin tidak valid. Silakan masukkan PIN yang benar.');
           sessionStorage.removeItem(ADMIN_PIN_STORAGE_KEY);
-          stopViolationAlarm();
           return;
         }
 
@@ -89,16 +84,6 @@ export default function MonitoringAdminPage() {
           setPesertaList(json.data || []);
           const incomingAlerts: ActiveViolationAlert[] = json.activeAlerts || [];
           setActiveAlerts(incomingAlerts);
-
-          // Jika ada alert aktif yang belum di-silence oleh Admin, bunyikan alarm.wav di komputer Admin
-          const hasUnsilencedAlert = incomingAlerts.some(
-            (a) => !silencedAlertIdsRef.current.has(a.id)
-          );
-          if (hasUnsilencedAlert) {
-            playViolationAlarm(true);
-          } else if (incomingAlerts.length === 0) {
-            stopViolationAlarm();
-          }
 
           setLastUpdated(json.updatedAt || new Date().toLocaleTimeString('id-ID'));
           setErrorMessage('');
@@ -131,23 +116,13 @@ export default function MonitoringAdminPage() {
     }
   }, [fetchMonitoringData]);
 
-  // Matikan bunyi alarm & hapus alert dari antrean server (wajib menyertakan x-admin-pin)
+  // Hapus peringatan pelanggaran dari antrean server (wajib menyertakan x-admin-pin)
   const handleDismissAlert = async (alertId: string) => {
-    silencedAlertIdsRef.current.add(alertId);
-    stopViolationAlarm();
-
     if (alertId === 'ALL') {
-      activeAlerts.forEach((a) => silencedAlertIdsRef.current.add(a.id));
       setActiveAlerts([]);
     } else {
       const remaining = activeAlerts.filter((a) => a.id !== alertId);
       setActiveAlerts(remaining);
-      const stillHasUnsilenced = remaining.some(
-        (a) => !silencedAlertIdsRef.current.has(a.id)
-      );
-      if (stillHasUnsilenced) {
-        playViolationAlarm(true);
-      }
     }
 
     fetch('/api/log', {
@@ -206,7 +181,6 @@ export default function MonitoringAdminPage() {
     }, 10000);
     return () => {
       clearInterval(pollInterval);
-      stopViolationAlarm();
     };
   }, [isAuthorized, adminPin, fetchMonitoringData]);
 
@@ -307,7 +281,6 @@ export default function MonitoringAdminPage() {
   };
 
   const handleLogoutAdmin = () => {
-    stopViolationAlarm();
     sessionStorage.removeItem(ADMIN_PIN_STORAGE_KEY);
     setIsAuthorized(false);
     setAdminPin('');
@@ -922,8 +895,8 @@ export default function MonitoringAdminPage() {
                     onClick={() => setIsIdentityBlurred((prev) => !prev)}
                     title={
                       isIdentityBlurred
-                        ? 'Tampilkan Nama & Email Peserta'
-                        : 'Samarkan (Blur) Nama & Email Peserta'
+                        ? 'Tampilkan Email Peserta'
+                        : 'Samarkan (Blur) Email Peserta'
                     }
                     className={`px-3.5 py-2.5 rounded-xl border-2 text-xs font-bold uppercase tracking-wider cursor-pointer transition-all flex items-center gap-2 ${isIdentityBlurred
                       ? 'bg-slate-900 border-slate-900 text-white shadow-xs'
@@ -959,7 +932,7 @@ export default function MonitoringAdminPage() {
                         <circle cx="12" cy="12" r="3" />
                       </svg>
                     )}
-                    <span>{isIdentityBlurred ? 'Identitas Diblur' : 'Blur Identitas'}</span>
+                    <span>{isIdentityBlurred ? 'Email Diblur' : 'Blur Email'}</span>
                   </button>
 
                   <select
@@ -1127,179 +1100,149 @@ export default function MonitoringAdminPage() {
                   </p>
                 </div>
               ) : (
-                <div className="bg-white rounded-3xl border-2 border-slate-200/90 shadow-md overflow-hidden">
-                  <div className="h-1.5 w-full bg-[#00AEEF]" />
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-slate-900 text-white text-[11px] font-bold uppercase tracking-wider">
-                          <th className="py-3.5 px-4 border-r border-slate-800 text-center w-14">
-                            No
-                          </th>
-                          <th className="py-3.5 px-4 border-r border-slate-800">Nama Peserta</th>
-                          <th className="py-3.5 px-4 border-r border-slate-800">Formasi Posisi</th>
-                          <th className="py-3.5 px-4 border-r border-slate-800">
-                            Waktu Mulai &amp; Batas
-                          </th>
-                          <th className="py-3.5 px-4 border-r border-slate-800 text-center">
-                            Sisa Waktu (Live)
-                          </th>
-                          <th className="py-3.5 px-4 border-r border-slate-800">
-                            Progres Soal Selesai
-                          </th>
-                          <th className="py-3.5 px-4 text-center">Status Ujian</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-200 text-xs md:text-sm font-medium text-slate-800">
-                        {filteredMonitoringPeserta.map((p, index) => {
-                          const isDone = p.statusUjian.toUpperCase().includes('SELESAI');
-                          const isWorking = p.statusUjian.toUpperCase().includes('SEDANG');
-                          const pct =
-                            p.totalSoal > 0
-                              ? Math.min(100, Math.round((p.terjawab / p.totalSoal) * 100))
-                              : 0;
-                          const pesertaActiveAlert = activeAlerts.find(
-                            (a) => a.namaPeserta.toLowerCase() === p.namaPeserta.toLowerCase()
-                          );
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3.5">
+                  {filteredMonitoringPeserta.map((p, index) => {
+                    const isDone = p.statusUjian.toUpperCase().includes('SELESAI');
+                    const isWorking = p.statusUjian.toUpperCase().includes('SEDANG');
+                    const pesertaAlerts = activeAlerts.filter(
+                      (a) => a.namaPeserta.toLowerCase() === p.namaPeserta.toLowerCase()
+                    );
+                    const pesertaActiveAlert = pesertaAlerts[0];
 
-                          return (
-                            <tr
-                              key={p.id}
-                              className={`transition-colors ${pesertaActiveAlert
-                                ? 'bg-red-50 hover:bg-red-100/70'
-                                : isDone
-                                  ? 'bg-[#F4FCEB]/50 hover:bg-[#F4FCEB]'
-                                  : 'bg-white hover:bg-slate-50/90'
+                    return (
+                      <div
+                        key={p.id}
+                        className={`rounded-2xl border-2 p-4 flex flex-col justify-between gap-3 shadow-xs transition-all ${pesertaActiveAlert
+                          ? 'bg-red-50/90 border-red-400 shadow-md'
+                          : isDone
+                            ? 'bg-[#F4FCEB]/60 border-[#8CC63F]/60'
+                            : isWorking
+                              ? 'bg-white border-[#00AEEF]/60 hover:border-[#00AEEF]'
+                              : 'bg-white border-slate-200/90 hover:border-slate-300'
+                          }`}
+                      >
+                        {/* Bagian Atas: No, Status Ujian, Nama, Email (Blur-able), & Posisi */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="inline-flex items-center justify-center min-w-[26px] h-6 px-2 rounded-lg bg-slate-900 text-white text-[11px] font-extrabold">
+                              #{index + 1}
+                            </span>
+
+                            {pesertaActiveAlert ? (
+                              <span className="bg-red-600 text-white px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider animate-pulse">
+                                Pelanggaran!
+                              </span>
+                            ) : isDone ? (
+                              <span className="bg-[#8CC63F] text-slate-950 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider">
+                                Selesai
+                              </span>
+                            ) : isWorking ? (
+                              <span className="bg-[#00AEEF] text-white px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider">
+                                Sedang Ujian
+                              </span>
+                            ) : (
+                              <span className="bg-slate-100 border border-slate-200 text-slate-500 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                                Belum Mulai
+                              </span>
+                            )}
+                          </div>
+
+                          <div>
+                            <p
+                              className="font-extrabold text-slate-900 text-sm leading-snug line-clamp-1"
+                              title={p.namaPeserta}
+                            >
+                              {p.namaPeserta}
+                            </p>
+                            {p.emailPeserta && (
+                              <p
+                                className={`text-[11px] font-medium text-slate-500 mt-0.5 truncate transition-all ${isIdentityBlurred ? 'blur-xs select-none' : ''
+                                  }`}
+                                title={isIdentityBlurred ? undefined : p.emailPeserta}
+                              >
+                                {p.emailPeserta}
+                              </p>
+                            )}
+                          </div>
+
+                          <div>
+                            <span
+                              className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide ${getPosisiBadgeColor(
+                                p.posisiDilamar
+                              )}`}
+                            >
+                              {p.posisiDilamar}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Bagian Tengah (Fokus Utama): Sisa Waktu Live */}
+                        <div
+                          className={`rounded-xl p-3 text-center border ${isDone
+                            ? 'bg-white/90 border-[#8CC63F]/50'
+                            : isWorking
+                              ? p.sisaDetik < 300
+                                ? 'bg-red-600 border-red-700 text-white animate-pulse'
+                                : 'bg-[#FFFBEB] border-[#F7941D]/60'
+                              : 'bg-slate-50 border-slate-200/80'
+                            }`}
+                        >
+                          <p
+                            className={`text-[10px] font-extrabold uppercase tracking-wider mb-0.5 ${isWorking && p.sisaDetik < 300 ? 'text-red-100' : 'text-slate-500'
+                              }`}
+                          >
+                            {isDone
+                              ? 'Sisa Waktu Saat Kumpul'
+                              : isWorking
+                                ? 'Sisa Waktu Ujian'
+                                : 'Waktu Ujian'}
+                          </p>
+
+                          {isWorking || isDone ? (
+                            <p
+                              className={`font-mono text-2xl md:text-3xl font-extrabold tracking-tight leading-none ${isDone
+                                ? 'text-slate-700'
+                                : p.sisaDetik < 300
+                                  ? 'text-white'
+                                  : 'text-slate-950'
                                 }`}
                             >
-                              <td className="py-4 px-4 border-r border-slate-100 font-bold text-slate-500 text-center">
-                                {index + 1}
-                              </td>
+                              {formatTime(p.sisaDetik)}
+                            </p>
+                          ) : (
+                            <p className="text-sm font-extrabold text-slate-400 py-1">
+                              Belum Mulai
+                            </p>
+                          )}
+                        </div>
 
-                              {/* Nama Peserta */}
-                              <td className="py-4 px-4 border-r border-slate-100">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <p
-                                    className={`font-bold text-slate-900 text-sm transition-all ${isIdentityBlurred ? 'blur-xs select-none' : ''
-                                      }`}
-                                  >
-                                    {p.namaPeserta}
-                                  </p>
-                                  {pesertaActiveAlert && (
-                                    <span className="bg-red-600 text-white px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider animate-pulse">
-                                      Alarm Berbunyi!
-                                    </span>
-                                  )}
-                                </div>
-                                {(p.emailPeserta || p.teleponPeserta) && (
-                                  <p
-                                    className={`text-[11px] font-medium text-slate-500 mt-0.5 transition-all ${isIdentityBlurred ? 'blur-xs select-none' : ''
-                                      }`}
-                                  >
-                                    {p.emailPeserta}{' '}
-                                    {p.teleponPeserta ? `• ${p.teleponPeserta}` : ''}
-                                  </p>
-                                )}
-                              </td>
+                        {/* Bagian Bawah: Waktu Mulai & Batas + Detail Log Pelanggaran (Jika Ada) */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-[10px] text-slate-500 border-t border-slate-200/70 pt-2">
+                            <span>
+                              Mulai: <strong className="text-slate-700">{p.waktuMulai}</strong>
+                            </span>
+                            <span>
+                              Batas: <strong className="text-slate-700">{p.batasSelesai}</strong>
+                            </span>
+                          </div>
 
-                              {/* Posisi */}
-                              <td className="py-4 px-4 border-r border-slate-100">
-                                <span
-                                  className={`inline-block px-3 py-1 rounded-full text-xs font-bold shadow-2xs ${getPosisiBadgeColor(
-                                    p.posisiDilamar
-                                  )}`}
+                          {pesertaAlerts.length > 0 && (
+                            <div className="space-y-1 pt-0.5">
+                              {pesertaAlerts.map((al) => (
+                                <p
+                                  key={al.id}
+                                  className="text-[11px] font-bold text-red-700 bg-red-100/90 border border-red-200 rounded-lg px-2.5 py-1.5 leading-snug"
                                 >
-                                  {p.posisiDilamar}
-                                </span>
-                              </td>
-
-                              {/* Waktu Mulai & Batas */}
-                              <td className="py-4 px-4 border-r border-slate-100 text-xs">
-                                <p>
-                                  <span className="font-bold text-slate-500">Mulai:</span>{' '}
-                                  <span className="font-semibold text-slate-800">
-                                    {p.waktuMulai}
-                                  </span>
+                                  • {al.jenisPelanggaran} (Pukul {al.waktu})
                                 </p>
-                                <p className="mt-0.5">
-                                  <span className="font-bold text-slate-500">Batas:</span>{' '}
-                                  <span className="font-semibold text-slate-800">
-                                    {p.batasSelesai}
-                                  </span>
-                                </p>
-                              </td>
-
-                              {/* Sisa Waktu Live */}
-                              <td className="py-4 px-4 border-r border-slate-100 text-center">
-                                {isWorking || isDone ? (
-                                  <>
-                                    <div
-                                      className={`inline-block px-3.5 py-1.5 rounded-xl font-mono text-sm md:text-base font-extrabold shadow-2xs ${isDone
-                                        ? 'bg-slate-100 text-slate-700 border border-slate-200'
-                                        : p.sisaDetik < 300
-                                          ? 'bg-red-600 text-white animate-pulse'
-                                          : 'bg-[#F7941D] text-slate-950'
-                                        }`}
-                                    >
-                                      {formatTime(p.sisaDetik)}
-                                    </div>
-                                    {isDone && (
-                                      <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-1">
-                                        Sisa Saat Kumpul
-                                      </span>
-                                    )}
-                                  </>
-                                ) : (
-                                  <span className="text-xs font-bold text-slate-400">
-                                    Belum Mulai
-                                  </span>
-                                )}
-                              </td>
-
-                              {/* Progres Pengerjaan */}
-                              <td className="py-4 px-4 border-r border-slate-100 min-w-[180px]">
-                                {isWorking || isDone ? (
-                                  <>
-                                    <div className="flex items-center justify-between text-xs font-bold mb-1.5">
-                                      <span className="bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-lg border border-slate-200">
-                                        {p.terjawab} / {p.totalSoal} Soal
-                                      </span>
-                                      <span className="text-slate-700 font-extrabold">{pct}%</span>
-                                    </div>
-                                    <div className="w-full h-3 bg-slate-100 rounded-full border border-slate-200 overflow-hidden">
-                                      <div
-                                        className="h-full bg-[#8CC63F] rounded-full transition-all duration-300"
-                                        style={{ width: `${pct}%` }}
-                                      />
-                                    </div>
-                                  </>
-                                ) : (
-                                  <span className="text-xs font-bold text-slate-400">-</span>
-                                )}
-                              </td>
-
-                              {/* Status */}
-                              <td className="py-4 px-4 text-center">
-                                {isDone ? (
-                                  <span className="inline-block bg-[#8CC63F] text-slate-950 px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider shadow-2xs">
-                                    Selesai
-                                  </span>
-                                ) : isWorking ? (
-                                  <span className="inline-block bg-[#00AEEF] text-white px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider shadow-2xs">
-                                    Sedang Ujian
-                                  </span>
-                                ) : (
-                                  <span className="inline-block bg-slate-100 border border-slate-200 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                                    Belum Mulai
-                                  </span>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </>
