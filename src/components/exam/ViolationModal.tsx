@@ -49,10 +49,7 @@ export default function ViolationModal({ violations, onClose }: ViolationModalPr
           </h3>
 
           <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 mb-6 text-xs text-slate-700 leading-relaxed">
-            Sistem telah membunyikan alarm dan mencatat aktivitas Anda ke{' '}
-            <code className="bg-white border border-red-200 text-red-700 px-1.5 py-0.5 rounded font-bold">
-              Log_Pelanggaran
-            </code>
+            Sistem telah membunyikan alarm dan mencatat aktivitas Anda.
             . Total pelanggaran Anda:{' '}
             <span className="inline-block bg-red-600 text-white px-2 py-0.5 rounded-full font-extrabold ml-1">
               {violations} Kali
