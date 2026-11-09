@@ -17,33 +17,34 @@ export async function POST(request: Request) {
       posisiDilamar,
       jenisPelanggaran,
       tahap,
+      pelanggaranKe,
     } = await request.json();
 
     const waktu = new Date().toLocaleString('id-ID', {
       timeZone: 'Asia/Jakarta',
     });
 
-    // Tahap 'detail' = log diperkaya (durasi keluar, nomor soal, aktivitas Paste) yang dikirim saat peserta kembali.
-    // Hanya dicatat ke sheet, karena hitungan & alarm sudah diproses pada tahap 'mulai'.
     const isDetail = tahap === 'detail';
-    // Tanpa 'tahap' (klien lama) -> perilaku lama: hitung, alarm, dan catat ke sheet sekaligus
+    const isKembali = tahap === 'kembali';
     const isMulai = tahap === 'mulai';
 
-    if (!isDetail) {
-    // 1. Tambah hitungan pelanggaran di memori server (Anti-Tampering agar peserta tidak bisa reset ke 0 via Inspect Element)
-    incrementServerViolation(emailPeserta, murniNama || namaPeserta);
+    if (!isDetail && !isKembali) {
+      // 1. Tambah hitungan pelanggaran di memori server (Anti-Tampering agar peserta tidak bisa reset ke 0 via Inspect Element)
+      incrementServerViolation(emailPeserta, murniNama || namaPeserta);
+    }
 
-    // 2. Simpan ke antrean alarm real-time di memori server agar halaman /monitoring langsung tahu siapa yang berbunyi (0 kuota API!)
+    // 2. Simpan / perbarui ke antrean peringatan real-time di memori server agar halaman /monitoring
+    //    selalu menampilkan detail lengkap sama persis dengan yang tercatat di Log_Pelanggaran (0 kuota API!)
     addViolationAlert({
       namaPeserta: (murniNama || namaPeserta || '').toString().trim(),
       emailPeserta: (emailPeserta || '').toString().trim(),
       posisiDilamar: (posisiDilamar || '').toString().trim(),
       jenisPelanggaran: (jenisPelanggaran || 'Pindah Tab').toString().trim(),
       waktu,
+      pelanggaranKe: pelanggaranKe ? Number(pelanggaranKe) : undefined,
     });
-    }
 
-    if (isMulai) {
+    if (isMulai || isKembali) {
       return NextResponse.json({ success: true });
     }
 

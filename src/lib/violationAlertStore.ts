@@ -6,9 +6,10 @@ export interface ActiveViolationAlert {
   jenisPelanggaran: string;
   waktu: string;
   timestampMs: number;
+  pelanggaranKe?: number;
 }
 
-const ALERT_TTL_MS = 10 * 60 * 1000; // Simpan riwayat alert aktif selama 10 menit di memori
+const ALERT_TTL_MS = 60 * 60 * 1000; // Simpan riwayat alert aktif selama 60 menit (selama sesi ujian berlangsung)
 
 const globalForAlert = globalThis as unknown as {
   bpsViolationAlerts?: ActiveViolationAlert[];
@@ -22,8 +23,28 @@ export function addViolationAlert(alert: Omit<ActiveViolationAlert, 'id' | 'time
   const now = Date.now();
   const list = globalForAlert.bpsViolationAlerts || [];
 
-  // Bersihkan yang sudah kedaluwarsa (> 10 menit)
+  // Bersihkan yang sudah kedaluwarsa (> 60 menit)
   const filtered = list.filter((a) => now - a.timestampMs < ALERT_TTL_MS);
+
+  // Jika ini adalah pembaruan untuk nomor pelanggaran (pelanggaranKe) dari peserta yang sama,
+  // perbarui teks jenisPelanggaran pada item yang sudah ada agar detail di /monitoring selalu sama persis dengan Log_Pelanggaran
+  const existingIdx = filtered.findIndex(
+    (a) =>
+      a.namaPeserta.toLowerCase() === alert.namaPeserta.toLowerCase() &&
+      ((alert.pelanggaranKe && a.pelanggaranKe === alert.pelanggaranKe) ||
+        (!alert.pelanggaranKe && now - a.timestampMs < 30000))
+  );
+
+  if (existingIdx !== -1) {
+    filtered[existingIdx] = {
+      ...filtered[existingIdx],
+      jenisPelanggaran: alert.jenisPelanggaran,
+      waktu: alert.waktu,
+      pelanggaranKe: alert.pelanggaranKe ?? filtered[existingIdx].pelanggaranKe,
+    };
+    globalForAlert.bpsViolationAlerts = filtered;
+    return filtered[existingIdx];
+  }
 
   const newAlert: ActiveViolationAlert = {
     ...alert,

@@ -567,6 +567,7 @@ export default function UjianPage() {
       kirimLog(
         {
           tahap: 'detail',
+          pelanggaranKe: pending.ke,
           jenisPelanggaran: `${pending.deskripsi}${infoPaste} (Pelanggaran ke-${pending.ke})`,
         },
         useBeacon
@@ -603,6 +604,7 @@ export default function UjianPage() {
 
         kirimLog({
           tahap: 'mulai',
+          pelanggaranKe: ke,
           jenisPelanggaran: `Keluar dari halaman saat mengerjakan Soal #${soalNo} (Pelanggaran ke-${ke})`,
         });
 
@@ -614,11 +616,19 @@ export default function UjianPage() {
         leaveInfoRef.current = null;
 
         const durasiDetik = Math.max(1, Math.round((Date.now() - info.leftAt) / 1000));
+        const deskripsi = `Keluar dari halaman selama ${formatDurasi(durasiDetik)} saat mengerjakan Soal #${info.soalNo}`;
         pendingViolationLogRef.current = {
-          deskripsi: `Keluar dari halaman selama ${formatDurasi(durasiDetik)} saat mengerjakan Soal #${info.soalNo}`,
+          deskripsi,
           ke: info.ke,
           timer: setTimeout(() => flushPendingLog(), PASTE_WATCH_MS),
         };
+
+        // Perbarui tampilan di /monitoring begitu peserta kembali agar durasi keluar langsung terlihat
+        kirimLog({
+          tahap: 'kembali',
+          pelanggaranKe: info.ke,
+          jenisPelanggaran: `${deskripsi} (Pelanggaran ke-${info.ke})`,
+        });
       }
     };
 
@@ -639,6 +649,7 @@ export default function UjianPage() {
       kirimLog(
         {
           tahap: 'detail',
+          pelanggaranKe: info.ke,
           jenisPelanggaran: `Keluar dari halaman saat mengerjakan Soal #${info.soalNo}, lalu menutup/meninggalkan halaman ujian setelah ${formatDurasi(durasiDetik)}. (Pelanggaran ke-${info.ke})`,
         },
         true
