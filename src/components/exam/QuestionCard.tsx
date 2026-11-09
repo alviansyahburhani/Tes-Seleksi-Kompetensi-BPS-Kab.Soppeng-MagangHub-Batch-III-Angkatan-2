@@ -54,10 +54,27 @@ export default function QuestionCard({
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({});
 
+  // State popup notifikasi larangan paste di deskripsi
+  const [showPasteWarning, setShowPasteWarning] = useState(false);
+
+  const handlePreventPaste = (e: React.ClipboardEvent | React.DragEvent) => {
+    e.preventDefault();
+    setShowPasteWarning(true);
+  };
+
+  useEffect(() => {
+    if (!showPasteWarning) return;
+    const timer = setTimeout(() => {
+      setShowPasteWarning(false);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [showPasteWarning]);
+
   // Reset state gambar & modal zoom setiap kali nomor/ID soal berganti
   useEffect(() => {
     setBrokenImages({});
     setZoomedImage(null);
+    setShowPasteWarning(false);
   }, [activeSoal.id]);
 
   // Tipe blok konten soal (teks atau gambar)
@@ -390,6 +407,8 @@ export default function QuestionCard({
               rows={7}
               value={jawabanValue || ''}
               onChange={(e) => onSelectAnswer(activeSoal.id, e.target.value)}
+              onPaste={handlePreventPaste}
+              onDrop={handlePreventPaste}
               placeholder="Ketik jawaban uraian atau penjelasan lengkap Anda di sini..."
               className="w-full p-4 bg-slate-50 focus:bg-white rounded-xl border-2 border-slate-200 focus:border-[#8CC63F] focus:ring-3 focus:ring-[#8CC63F]/15 font-medium text-sm md:text-base text-slate-900 placeholder:text-slate-400 focus:outline-none transition-all leading-relaxed"
             />
@@ -520,6 +539,45 @@ export default function QuestionCard({
           </button>
         </div>
       </div>
+
+      {/* Popup kecil di kanan bawah saat mencoba paste di soal deskripsi */}
+      {showPasteWarning && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-slate-900/95 text-white px-4 py-3 rounded-2xl shadow-2xl border border-slate-700/80 backdrop-blur-md animate-fade-in transition-all">
+          <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+            <svg
+              className="w-4 h-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
+          <div className="pr-1">
+            <p className="text-xs font-bold text-slate-100 leading-tight">
+              Aksi Paste Dinonaktifkan
+            </p>
+            <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">
+              Jawaban deskripsi wajib diketik secara langsung.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowPasteWarning(false)}
+            className="text-slate-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* Lightbox Modal Zoom Gambar Soal */}
       {zoomedImage && (
