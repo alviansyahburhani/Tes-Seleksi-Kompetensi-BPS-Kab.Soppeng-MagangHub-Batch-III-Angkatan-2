@@ -525,7 +525,7 @@ export default function UjianPage() {
     };
   }, [isSessionReady, isFinished]);
 
-  // 5. Deteksi Pindah Tab / VisibilityChange (Silent bypass saat di soal DESKRIPSI atau PRAKTIK)
+  // 5. Deteksi Pindah Tab / VisibilityChange (Silent bypass HANYA saat di soal PRAKTIK)
   //    Log diperkaya: durasi keluar halaman, nomor soal, & aktivitas Paste setelah kembali.
   //    - Saat keluar  -> tahap 'mulai'  : alarm real-time ke /monitoring + hitung pelanggaran di server
   //    - Saat kembali -> tahap 'detail' : catat 1 baris lengkap ke sheet Log_Pelanggaran
@@ -579,10 +579,8 @@ export default function UjianPage() {
         // Jika peserta keluar lagi saat masa pengamatan Paste, kirim log sebelumnya terlebih dahulu
         flushPendingLog();
 
-        if (
-          activeSoalTipeRef.current === 'PRAKTIK' ||
-          activeSoalTipeRef.current === 'DESKRIPSI'
-        ) {
+        // Hanya soal PRAKTIK yang bebas pindah tab (karena membuka Canva/Spreadsheet)
+        if (activeSoalTipeRef.current === 'PRAKTIK') {
           return;
         }
 
