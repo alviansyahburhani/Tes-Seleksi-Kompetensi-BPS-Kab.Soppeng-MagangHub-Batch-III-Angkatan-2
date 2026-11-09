@@ -1,101 +1,186 @@
-# 📊 Portal Ujian Seleksi Kompetensi BPS (Batch III)
+Sistem Ujian Seleksi Kompetensi (CAT) — BPS Kabupaten Soppeng
 
-Platform ujian online mandiri berbasis web dengan desain **Neobrutalism BPS** untuk **60+ peserta serentak**. Sistem ini menggunakan **Google Spreadsheet sebagai database utama** (bank soal, monitoring peserta *real-time*, log pelanggaran, dan rekap hasil ujian) serta dilengkapi sistem keamanan anti-kecurangan berbasis browser.
+Repositori ini berisi kode sumber aplikasi web Computer Assisted Test (CAT) yang digunakan untuk pelaksanaan Tes Seleksi Kompetensi peserta MagangHub Batch III Angkatan 2 di lingkungan Badan Pusat Statistik (BPS) Kabupaten Soppeng.
 
----
+Aplikasi ini dirancang untuk menyelenggarakan ujian daring secara terstruktur, aman, dan terpantau secara real-time. Sistem memanfaatkan Next.js (App Router) sebagai kerangka kerja utama dan mengintegrasikan Google Sheets API sebagai basis data terpusat yang didukung oleh mekanisme server-side caching untuk menjaga stabilitas performa saat diakses secara serentak.
 
-## 🎯 1. Tujuan & Keunggulan Sistem
+Fitur Utama
 
-1. **Distribusi Soal Dinamis & Acak per Formasi:**
-   Soal yang tampil otomatis menyesuaikan antara **Soal Umum (`UMUM`)** dan **Soal Khusus Posisi yang Dilamar** (`Staff Administrasi`, `Publisitas dan Kehumasan`, atau `Asisten Pengelola Keuangan`), lalu diacak (*random shuffle*) untuk setiap peserta.
-2. **Mendukung 3 Tipe Soal Sekaligus:**
-   - **Pilihan Ganda (`PG`):** Opsi jawaban `A, B, C, D, E`.
-   - **Soal Deskripsi (`DESKRIPSI`):** Jawaban uraian/esai panjang.
-   - **Soal Praktik (`PRAKTIK`):** Pengumpulan tautan Google Spreadsheet kerja dan/atau unggah file gambar hasil desain (`PNG`/`JPG` terkompresi otomatis).
-3. **Smart Anti-Cheat (Deteksi Pindah Tab + Alarm Audio):**
-   - Pada soal **Pilihan Ganda (`PG`)**, perpindahan tab atau *minimize* browser akan memicu suara alarm (`AudioContext`) dan mencatat pelanggaran secara *real-time* ke sheet `Log_Pelanggaran`.
-   - Pada soal **Deskripsi (`DESKRIPSI`)** dan **Soal Praktik (`PRAKTIK`)**, sistem secara otomatis menonaktifkan alarm pindah tab tanpa menampilkan indikator apa pun di layar peserta.
-4. **Live Monitoring Peserta & Sisa Waktu:**
-   Begitu peserta menekan tombol **"Mulai Ujian Sekarang"**, identitas beserta sisa waktu dan progres pengerjaan langsung tercatat dan diperbarui secara berkala setiap menit di sheet `Monitoring_Peserta`.
-5. **Proteksi 1x Login & Anti-Refresh Curang:**
-   Setiap Email dan Nama Lengkap hanya dapat memulai ujian **1 kali** (divalidasi langsung ke sheet `Monitoring_Peserta` dan `Hasil_Ujian`). Sesi ujian juga disimpan otomatis di browser sehingga jika peserta me-*refresh* halaman, sisa waktu tidak dapat di-reset ke 60 menit.
-6. **Desain Neobrutalism Khas BPS:**
-   Menggunakan kombinasi warna resmi Badan Pusat Statistik — **Biru (`#00AEEF`)**, **Hijau (`#8CC63F`)**, dan **Oranye (`#F7941D`)** — dengan tata letak yang bersih dan fokus pada pengerjaan soal.
+1. Modul Peserta Ujian
 
----
+Autentikasi & Validasi Sesi (/login): Memverifikasi identitas peserta dan mencegah akses ganda pada sesi ujian yang sedang berlangsung.
 
-## 🛠️ 2. Tech Stack
+Ruang Tunggu & Pakta Integritas (/lobby): Menampilkan informasi peserta, petunjuk teknis, serta tata tertib ujian sebelum waktu pengerjaan dimulai.
 
-- **Framework:** Next.js 16 (App Router, TypeScript)
-- **Styling:** Tailwind CSS v4 (Tema Neobrutalism BPS)
-- **Database & Penyimpanan:** Google Sheets API v4 (`googleapis` dengan autentikasi `JWT` Service Account)
-- **Deployment:** Vercel (Serverless)
+Antarmuka Ujian CAT (/ujian):
 
----
+Navigasi nomor soal interaktif dengan indikator status pengerjaan (Sudah Dijawab, Ragu-ragu, dan Belum Dijawab).
 
-## 📁 3. Struktur Direktori Utama
+Penunjuk waktu mundur (countdown timer) yang tersinkronisasi dengan waktu mulai peserta di server.
 
-- [`src/types/exam.ts`](src/types/exam.ts) — Definisi tipe data TypeScript (`Soal`, `TipeSoal`, `DataPraktik`, `SavedExamSession`).
-- [`src/constants/exam.ts`](src/constants/exam.ts) — Konstanta terpusat (durasi ujian, daftar formasi posisi, opsi huruf, dan nama sheet Google Spreadsheet).
-- [`src/utils/examHelper.ts`](src/utils/examHelper.ts) — Fungsi utilitas murni (parser baris soal Google Sheets, pencocokan posisi, pengacakan *Fisher-Yates*, dan pemformatan waktu).
-- [`src/utils/mediaHelper.ts`](src/utils/mediaHelper.ts) — Fungsi Web Audio API untuk alarm pelanggaran dan kompresi gambar desain di sisi klien.
-- [`src/components/exam/`](src/components/exam/) — Komponen antarmuka modular:
-  - [`LoginView.tsx`](src/components/exam/LoginView.tsx) — Halaman registrasi/login peserta.
-  - [`ExamHeader.tsx`](src/components/exam/ExamHeader.tsx) — Header identitas peserta, *countdown timer*, dan tombol kumpul.
-  - [`QuestionCard.tsx`](src/components/exam/QuestionCard.tsx) — Kartu soal dinamis (Pilihan Ganda, Deskripsi, dan Praktik Spreadsheet/Desain).
-  - [`QuestionNavigationMap.tsx`](src/components/exam/QuestionNavigationMap.tsx) — Peta navigasi nomor soal yang dapat disembunyikan (*hide/show*).
-  - [`ViolationModal.tsx`](src/components/exam/ViolationModal.tsx) — Modal peringatan saat peserta berpindah tab.
-  - [`FinishedView.tsx`](src/components/exam/FinishedView.tsx) — Halaman bukti pengumpulan jawaban peserta.
-- [`src/lib/googleSheets.ts`](src/lib/googleSheets.ts) — Koneksi dan autentikasi JWT Google Sheets API.
-- [`src/app/api/soal/route.ts`](src/app/api/soal/route.ts) — Endpoint `GET` untuk membaca bank soal dari sheet `Soal`.
-- [`src/app/api/start/route.ts`](src/app/api/start/route.ts) — Endpoint `POST` & `PUT` untuk validasi 1x ujian dan *live monitoring* di sheet `Monitoring_Peserta`.
-- [`src/app/api/monitoring/route.ts`](src/app/api/monitoring/route.ts) — Endpoint `GET` untuk mengambil rekapitulasi sisa waktu, progres soal, dan pelanggaran seluruh peserta secara *real-time*.
-- [`src/app/api/log/route.ts`](src/app/api/log/route.ts) — Endpoint `POST` untuk mencatat kecurangan pindah tab ke sheet `Log_Pelanggaran`.
-- [`src/app/api/submit/route.ts`](src/app/api/submit/route.ts) — Endpoint `POST` untuk menyimpan rekap jawaban ke tab posisi terkait.
-- [`src/app/page.tsx`](src/app/page.tsx) — Kontainer utama pengelola *state* dan alur ujian peserta.
-- [`src/app/monitoring/page.tsx`](src/app/monitoring/page.tsx) — Halaman Dashboard Monitoring Admin (`/monitoring`) untuk melihat sisa waktu dan progres soal (`X / Y Soal`) tiap peserta secara *live*.
+Dukungan perenderan rumus/notasi matematika serta instrumen soal berbasis gambar (tabel statistik, nota, dan draf surat).
 
----
+Pengumpulan jawaban otomatis (auto-submit) apabila waktu ujian telah habis.
 
-## 📋 4. Struktur Sheet di Google Spreadsheet
+Portal Pengumuman (/pengumuman): Menyajikan informasi hasil akhir seleksi kompetensi peserta.
 
-Pastikan Google Spreadsheet Anda telah dibagikan (*Share* sebagai **Editor**) ke alamat email Service Account (`GOOGLE_CLIENT_EMAIL`).
+2. Sistem Keamanan & Integritas (Anti-Cheat)
 
-### 1. Sheet `Soal`
-| Kolom | Nama Kolom | Keterangan Pengisian |
-| :--- | :--- | :--- |
-| **A** | Kategori / Posisi | Isi `UMUM` (untuk semua peserta) atau nama posisi (`Staff Administrasi`, `Publisitas dan Kehumasan`, `Asisten Pengelola Keuangan`). |
-| **B** | Pertanyaan | Teks soal yang akan ditampilkan. |
-| **C – G** | Opsi A – E | Isi pilihan jawaban A s/d E untuk soal Pilihan Ganda. Kosongkan untuk soal Deskripsi atau Praktik. |
-| **H** | Kunci / Tipe Soal | Isi kunci huruf (`A`/`B`/`C`/`D`/`E`) untuk PG, atau tulis `DESKRIPSI` / `PRAKTIK` untuk soal uraian dan praktik. |
+Deteksi Perpindahan Fokus & Tab: Memantau aktivitas peramban peserta secara aktif dan mendeteksi upaya keluar dari halaman ujian, berpindah tab, atau membuka aplikasi lain.
 
-### 2. Sheet `Monitoring_Peserta` *(Dibuat Otomatis)*
-Mencatat peserta segera setelah menekan tombol **Mulai Ujian Sekarang**:
-`Nama Peserta | Email | Posisi Dilamar | Alamat Domisili | Waktu Mulai | Batas Selesai | Sisa Waktu | Progress Jawaban | Status Ujian`
+Pencatatan Pelanggaran Otomatis: Setiap pelanggaran yang terdeteksi akan memunculkan modal peringatan pada layar peserta dan langsung tercatat ke dalam basis data beserta cap waktunya (timestamp).
 
-### 3. Sheet `Log_Pelanggaran`
-Mencatat aktivitas pindah tab pada soal non-praktik:
-`Waktu Kejadian | Nama Peserta (Posisi) | Jenis Pelanggaran`
+3. Modul Pengawasan Real-Time (/monitoring)
 
-### 4. Sheet Jawaban Terpisah per Posisi (`Jawaban_Administrasi`, `Jawaban_Kehumasan`, `Jawaban_Keuangan`) *(Dibuat Otomatis)*
-Saat peserta menyelesaikan ujian, seluruh jawaban yang ia kerjakan (baik soal `UMUM` maupun soal khusus posisinya) otomatis masuk ke tab yang sesuai dengan **Posisi yang dipilih saat Login**:
-- Pelamar **Staff Administrasi** → masuk ke tab **`Jawaban_Administrasi`**
-- Pelamar **Publisitas dan Kehumasan** → masuk ke tab **`Jawaban_Kehumasan`**
-- Pelamar **Asisten Pengelola Keuangan** → masuk ke tab **`Jawaban_Keuangan`**
+Dashboard Proctoring: Menampilkan daftar seluruh peserta, status pengerjaan saat ini, progres soal, dan jumlah pelanggaran secara langsung.
 
-Susunan kolom di masing-masing tab (isi sel di bawah kolom soal murni berisi jawaban peserta):
-`Waktu Selesai | Nama Peserta | Email | Posisi Dilamar | Alamat Domisili | Total Pelanggaran | Sisa Waktu | Soal 1 (UMUM) | Soal 2 (...) | ...`
+Notifikasi & Alarm Pelanggaran: Dilengkapi sistem peringatan suara otomatis (alarm.wav) dan alert visual di layar pengawas ketika terdapat peserta yang melakukan pelanggaran selama ujian berlangsung.
 
-### Cara Menjalankan Build Production Secara Lokal:
-```bash
+Teknologi yang Digunakan
+
+Framework: Next.js (App Router)
+
+Bahasa Pemrograman: TypeScript
+
+Antarmuka & Styling: React, Tailwind CSS
+
+Basis Data & Penyimpanan: Google Sheets API (googleapis) dengan dukungan In-Memory Server Cache
+
+Utilitas Tambahan: Perenderan teks matematika kustom (MathText) dan Web Audio API untuk sistem pengawasan
+
+Struktur Direktori
+
+├── public/                              # Aset statis (Logo BPS, audio alarm, dan gambar instrumen soal)
+├── src/
+│   ├── app/                             # Routing halaman dan API (Next.js App Router)
+│   │   ├── api/
+│   │   │   ├── log/route.ts             # Endpoint pencatatan log pelanggaran peserta
+│   │   │   ├── monitoring/route.ts      # Endpoint pengambilan data pantauan pengawas
+│   │   │   ├── soal/route.ts            # Endpoint distribusi soal ujian
+│   │   │   ├── start/route.ts           # Endpoint inisialisasi waktu mulai ujian
+│   │   │   └── submit/route.ts          # Endpoint pengumpulan jawaban dan kalkulasi skor
+│   │   ├── lobby/page.tsx               # Halaman ruang tunggu peserta
+│   │   ├── login/page.tsx               # Halaman login peserta
+│   │   ├── monitoring/page.tsx          # Halaman dashboard pengawas ujian
+│   │   ├── pengumuman/page.tsx          # Halaman pengumuman hasil seleksi
+│   │   ├── ujian/page.tsx               # Halaman lembar kerja ujian utama
+│   │   └── page.tsx                     # Halaman utama (landing/redirect)
+│   ├── components/exam/                 # Komponen antarmuka pengguna (UI) khusus ujian
+│   │   ├── ConfirmSubmitModal.tsx       # Modal konfirmasi penyelesaian ujian
+│   │   ├── ExamHeader.tsx               # Header informasi peserta dan penghitung waktu mundur
+│   │   ├── FinishedView.tsx             # Tampilan setelah peserta menyelesaikan ujian
+│   │   ├── LoginView.tsx                # Komponen formulir login
+│   │   ├── MathText.tsx                 # Komponen perender rumus matematika
+│   │   ├── ParticipantLobbyView.tsx     # Komponen ruang tunggu dan tata tertib
+│   │   ├── QuestionCard.tsx             # Komponen kartu soal dan opsi pilihan ganda
+│   │   ├── QuestionNavigationMap.tsx    # Panel navigasi nomor soal
+│   │   ├── UnansweredModal.tsx          # Modal peringatan soal yang belum dijawab
+│   │   └── ViolationModal.tsx           # Modal peringatan pelanggaran ujian
+│   ├── constants/exam.ts                # Konstanta konfigurasi ujian (durasi, batas pelanggaran, dll.)
+│   ├── lib/                             # Pustaka inti sisi server (Backend Logic)
+│   │   ├── googleSheets.ts              # Konfigurasi koneksi dan operasi baca/tulis Google Sheets
+│   │   ├── security.ts                  # Fungsi validasi keamanan dan otorisasi request
+│   │   ├── sheetsCache.ts               # Manajemen cache memori untuk efisiensi kuota API
+│   │   └── violationAlertStore.ts       # Manajemen antrean peringatan pelanggaran real-time
+│   ├── types/exam.ts                    # Definisi tipe data TypeScript
+│   └── utils/                           # Fungsi bantuan (Helper Functions)
+│       ├── examHelper.ts                # Fungsi format waktu, pengolahan soal, dan evaluasi
+│       └── mediaHelper.ts               # Fungsi pengendali audio alarm pada dashboard monitoring
+├── next.config.ts                       # Konfigurasi Next.js
+├── package.json                         # Daftar dependensi dan skrip NPM
+└── tsconfig.json                        # Konfigurasi kompilator TypeScript
+
+
+Panduan Instalasi dan Penggunaan
+
+Prasyarat
+
+Node.js versi 18.17 atau lebih baru.
+
+npm, yarn, atau pnpm.
+
+Akun Google Cloud Service Account yang memiliki akses Editor ke dokumen Google Sheets yang digunakan sebagai basis data.
+
+1. Kloning Repositori
+
+git clone https://github.com/alviansyahburhani/tes-seleksi-kompetensi-bps-kab.soppeng-maganghub-batch-iii-angkatan-2.git
+cd tes-seleksi-kompetensi-bps-kab.soppeng-maganghub-batch-iii-angkatan-2
+
+
+2. Instalasi Dependensi
+
+npm install
+
+
+3. Konfigurasi Variabel Lingkungan (Environment Variables)
+
+Buat file .env.local pada direktori utama (root) proyek dan sesuaikan variabel berikut dengan kredensial Google Cloud serta pengaturan keamanan Anda:
+
+# Kredensial Google Service Account
+GOOGLE_SHEETS_CLIENT_EMAIL="service-account-anda@project-id.iam.gserviceaccount.com"
+GOOGLE_SHEETS_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+
+# ID Dokumen Google Spreadsheet
+GOOGLE_SPREADSHEET_ID="id_spreadsheet_anda"
+
+# Konfigurasi Keamanan Aplikasi (Sesuaikan dengan src/lib/security.ts)
+ADMIN_MONITORING_KEY="kunci_akses_monitoring"
+SESSION_SECRET="kunci_rahasia_sesi"
+
+
+4. Menjalankan Aplikasi
+
+Untuk menjalankan server pengembangan (development):
+
+npm run dev
+
+
+Buka http://localhost:3000 pada peramban Anda untuk melihat hasilnya.
+
+Untuk membangun dan menjalankan aplikasi pada lingkungan produksi (production):
+
 npm run build
 npm run start
-```
 
-### Cara Deploy ke Vercel:
-1. Push repository ini ke **GitHub** (file `.env.local` otomatis diabaikan oleh `.gitignore` sehingga kunci rahasia aman).
-2. Buka [https://vercel.com/new](https://vercel.com/new) dan *Import* repository GitHub Anda.
-3. Pada bagian **Environment Variables**, masukkan ke-4 variabel di atas (`GOOGLE_SHEET_ID`, `GOOGLE_CLIENT_EMAIL`, `GOOGLE_PRIVATE_KEY`, dan `ADMIN_PIN`).
-4. Klik **Deploy**.
-   - Halaman Ujian Peserta: `https://nama-domain-anda.vercel.app/`
-   - Halaman Monitoring Admin: `https://nama-domain-anda.vercel.app/monitoring` (Login menggunakan `ADMIN_PIN`).
+
+Ringkasan Endpoint API
+
+Endpoint
+
+Metode
+
+Deskripsi
+
+/api/start
+
+POST
+
+Memvalidasi kredensial peserta dan mencatat waktu mulai sesi ujian ke Google Sheets.
+
+/api/soal
+
+GET
+
+Mengambil daftar soal ujian melalui lapisan cache server tanpa menyertakan kunci jawaban.
+
+/api/log
+
+POST
+
+Mencatat tindakan pelanggaran peserta dan memicu notifikasi pada halaman pengawas.
+
+/api/submit
+
+POST
+
+Menerima jawaban akhir peserta, menghitung skor di sisi server, dan menyimpan hasil ujian.
+
+/api/monitoring
+
+GET
+
+Menyajikan data progres peserta secara real-time dan daftar peringatan untuk pengawas.
+
+Lisensi & Hak Cipta
+
+Dikembangkan untuk keperluan pelaksanaan Tes Seleksi Kompetensi MagangHub Batch III Angkatan 2 — Badan Pusat Statistik (BPS) Kabupaten Soppeng. Seluruh hak cipta dilindungi.
