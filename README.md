@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🎯 Sistem Ujian Seleksi Kompetensi (CAT)
+#Sistem Ujian Seleksi Kompetensi (CAT)
 
 ### Badan Pusat Statistik (BPS) Kabupaten Soppeng
 
