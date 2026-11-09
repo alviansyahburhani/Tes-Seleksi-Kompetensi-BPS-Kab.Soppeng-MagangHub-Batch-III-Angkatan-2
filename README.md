@@ -363,9 +363,3 @@ Dibuat dan dikembangkan oleh Alviansyah
 ⭐ Jika proyek ini bermanfaat, jangan lupa beri bintang pada repositori!
 
 </div>
-
-**Dibuat dengan ❤️ untuk seleksi yang jujur, adil, dan transparan**
-
-⭐ Jika proyek ini bermanfaat, jangan lupa beri bintang pada repositori!
-
-</div>
