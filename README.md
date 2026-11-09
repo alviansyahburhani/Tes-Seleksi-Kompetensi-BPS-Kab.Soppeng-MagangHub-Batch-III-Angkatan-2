@@ -350,15 +350,19 @@ Saran dan perbaikan sangat diterima.
 
 ---
 
-## 📜 Lisensi & Hak Cipta
+📜 Lisensi & Hak Cipta
 
-Dikembangkan untuk keperluan pelaksanaan **Tes Seleksi Kompetensi MagangHub Batch III Angkatan 2** — **Badan Pusat Statistik (BPS) Kabupaten Soppeng**.
+Dikembangkan untuk keperluan pelaksanaan Tes Seleksi Kompetensi MagangHub Batch III Angkatan 2 — Badan Pusat Statistik (BPS) Kabupaten Soppeng.
 
 © Seluruh hak cipta dilindungi.
 
-<div align="center">
+<div align="center"> <br/>
 
-<br/>
+Dibuat dan dikembangkan oleh Alviansyah
+
+⭐ Jika proyek ini bermanfaat, jangan lupa beri bintang pada repositori!
+
+</div>
 
 **Dibuat dengan ❤️ untuk seleksi yang jujur, adil, dan transparan**
 
