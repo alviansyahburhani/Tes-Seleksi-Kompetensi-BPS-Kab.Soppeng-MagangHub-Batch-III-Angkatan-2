@@ -9,7 +9,6 @@ import {
   getServerParticipantSession,
   hasParticipantExamMemory,
   isKompetensiApproved,
-  recordParticipantAttendance,
   registerServerParticipantSession,
   requestAccountReset,
   sanitizeSheetRow,
@@ -45,10 +44,10 @@ async function createMonitoringSheetIfMissing(sheets: any, spreadsheetId: string
     });
   }
 
-  // Pastikan header kolom A1:L1 mencakup No. Telepon di Kolom C, Status Wawancara di Kolom K, dan Status Kelulusan di Kolom L
+  // Pastikan header kolom A1:M1 mencakup No. Telepon di Kolom C, Status Wawancara di Kolom K, Status Kelulusan di Kolom L, dan Nomor Antrean di Kolom M
   await sheets.spreadsheets.values.update({
     spreadsheetId,
-    range: `${SHEET_NAMES.MONITORING}!A1:L1`,
+    range: `${SHEET_NAMES.MONITORING}!A1:M1`,
     valueInputOption: 'RAW',
     requestBody: {
       values: [
@@ -65,6 +64,7 @@ async function createMonitoringSheetIfMissing(sheets: any, spreadsheetId: string
           'Status Ujian',
           'Status Wawancara',
           'Status Kelulusan',
+          'Nomor Antrean',
         ],
       ],
     },
@@ -74,16 +74,25 @@ async function createMonitoringSheetIfMissing(sheets: any, spreadsheetId: string
 }
 
 /**
- * Helper: Mengekstrak Status Kelulusan secara dinamis dari Kolom K / L / M / dst
- * (Mendukung penempatan kolom dinamis di mana pun Admin menuliskan Lulus / Tidak Lulus / Lolos / Diterima / Gagal)
+ * Helper: Membaca angka Nomor Antrean dari Kolom M (index 12)
+ */
+function parseNomorAntrean(rawVal: unknown): number | null {
+  const str = (rawVal ?? '').toString().trim();
+  if (!str) return null;
+  const match = str.match(/\d+/);
+  if (!match) return null;
+  const num = parseInt(match[0], 10);
+  return Number.isFinite(num) && num > 0 ? num : null;
+}
+
+/**
+ * Helper: Mengekstrak Status Kelulusan secara dinamis dari Kolom L / K
+ * (Kolom M digunakan khusus untuk Nomor Antrean sehingga tidak dibaca sebagai Status Kelulusan)
  */
 function extractStatusKelulusan(row: any[]): string {
-  // 1. Cek Kolom L (index 11) dan Kolom M (index 12) terlebih dahulu (kolom khusus Status Kelulusan)
+  // 1. Cek Kolom L (index 11 - kolom khusus Status Kelulusan)
   const colL = (row?.[11] || '').toString().trim();
   if (colL) return colL;
-
-  const colM = (row?.[12] || '').toString().trim();
-  if (colM) return colM;
 
   // 2. Cek Kolom K (index 10):
   //    Jika Kolom K berisi nilai SELAIN status wawancara ("SUDAH WAWANCARA..."),
@@ -97,9 +106,9 @@ function extractStatusKelulusan(row: any[]): string {
     }
   }
 
-  // 3. Fallback: Cek mulai dari Kolom J (index 9) sampai ujung kanan baris jika ada kata kunci kelulusan eksplisit
+  // 3. Fallback: Cek mulai dari Kolom J (index 9) sampai Kolom L (index 11) jika ada kata kunci kelulusan eksplisit
   if (Array.isArray(row)) {
-    for (let c = 9; c < row.length; c++) {
+    for (let c = 9; c <= 11; c++) {
       const cellVal = (row[c] || '').toString().trim();
       if (!cellVal) continue;
       const upper = cellVal.toUpperCase();
@@ -468,20 +477,53 @@ export async function POST(request: Request) {
       const finalTelepon = (teleponPeserta || '').toString().trim();
       const finalAlamat = alamatPeserta.trim();
 
-      // Update Kolom A s/d E pada baris email peserta yang sudah ada di Monitoring_Peserta
-      await sheets.spreadsheets.values.update({
+      // Hitung Nomor Antrean untuk Kolom M (index 12):
+      // Jika peserta sudah punya nomor antrean di Kolom M dan biodatanya sebelumnya sudah lengkap, pertahankan nomornya.
+      // Jika belum punya nomor antrean (atau baru mengisi daftar hadir pertama kali / setelah di-reset Admin),
+      // cari angka antrean tertinggi dari seluruh peserta aktif di Kolom M lalu tambah 1 (dimulai dari 1).
+      const prevQueueNum = parseNomorAntrean(existingRow[12]);
+      let assignedQueueNum = !wasProfileIncomplete && prevQueueNum ? prevQueueNum : null;
+
+      if (!assignedQueueNum) {
+        let maxQueue = 0;
+        for (let i = 0; i < existingRows.length; i++) {
+          if (i === foundIndex) continue;
+          const r = existingRows[i];
+          const rNama = (r?.[0] || '').toString().trim();
+          const rEmail = (r?.[1] || '').toString().trim();
+          const rTelp = (r?.[2] || '').toString().trim();
+          // Hanya hitung baris peserta yang sudah mengisi daftar hadir (Nama, Email, Telepon terisi)
+          if (!rNama || !rEmail || !rTelp) continue;
+          const qNum = parseNomorAntrean(r?.[12]);
+          if (qNum && qNum > maxQueue) {
+            maxQueue = qNum;
+          }
+        }
+        assignedQueueNum = maxQueue + 1;
+      }
+
+      // Update Kolom A s/d E (Biodata) dan Kolom M (Nomor Antrean) sekaligus pada baris peserta di Monitoring_Peserta
+      await sheets.spreadsheets.values.batchUpdate({
         spreadsheetId,
-        range: `${SHEET_NAMES.MONITORING}!A${existingRowNumber}:E${existingRowNumber}`,
-        valueInputOption: 'RAW',
         requestBody: {
-          values: [
-            sanitizeSheetRow([
-              finalNama,
-              finalEmail,
-              finalTelepon,
-              finalPosisi,
-              finalAlamat,
-            ]),
+          valueInputOption: 'RAW',
+          data: [
+            {
+              range: `${SHEET_NAMES.MONITORING}!A${existingRowNumber}:E${existingRowNumber}`,
+              values: [
+                sanitizeSheetRow([
+                  finalNama,
+                  finalEmail,
+                  finalTelepon,
+                  finalPosisi,
+                  finalAlamat,
+                ]),
+              ],
+            },
+            {
+              range: `${SHEET_NAMES.MONITORING}!M${existingRowNumber}`,
+              values: [[String(assignedQueueNum)]],
+            },
           ],
         },
       });
@@ -503,9 +545,6 @@ export async function POST(request: Request) {
           clearParticipantServerState(existingRowNumber, finalEmail, prevNama);
         }
       }
-
-      // Catat urutan waktu kedatangan peserta di memori server untuk antrean di halaman /monitoring
-      recordParticipantAttendance(existingRowNumber, finalEmail);
 
       const upperUjian = statusUjian.toUpperCase();
       const upperWawancara = statusWawancara.toUpperCase();

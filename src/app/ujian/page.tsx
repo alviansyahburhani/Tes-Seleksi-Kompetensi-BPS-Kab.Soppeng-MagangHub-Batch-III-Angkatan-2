@@ -26,6 +26,7 @@ import FinishedView from '@/components/exam/FinishedView';
 import ViolationModal from '@/components/exam/ViolationModal';
 import UnansweredModal from '@/components/exam/UnansweredModal';
 import ConfirmSubmitModal from '@/components/exam/ConfirmSubmitModal';
+import TimeUpModal from '@/components/exam/TimeUpModal';
 import ExamHeader from '@/components/exam/ExamHeader';
 import QuestionCard from '@/components/exam/QuestionCard';
 import QuestionNavigationMap from '@/components/exam/QuestionNavigationMap';
@@ -77,6 +78,9 @@ export default function UjianPage() {
   const [showWarning, setShowWarning] = useState(false);
   const [unansweredWarning, setUnansweredWarning] = useState('');
   const [showConfirmSubmit, setShowConfirmSubmit] = useState(false);
+  const [showTimeUpModal, setShowTimeUpModal] = useState(false);
+  const [autoSubmitDone, setAutoSubmitDone] = useState(false);
+  const [autoSubmitError, setAutoSubmitError] = useState('');
   const [isFinished, setIsFinished] = useState(false);
   const [showNavMap, setShowNavMap] = useState(true);
 
@@ -86,6 +90,9 @@ export default function UjianPage() {
   const soalListRef = useRef(soalList);
   const violationsRef = useRef(violations);
   const timeLeftRef = useRef(timeLeft);
+  const endTimeMsRef = useRef<number | null>(endTimeMs);
+  const isTimeUpRef = useRef(false);
+  const hasAutoSubmittedRef = useRef(false);
   const monitoringRowRef = useRef<number | null>(monitoringRowNumber);
   const identitasRef = useRef({
     namaPeserta,
@@ -129,6 +136,10 @@ export default function UjianPage() {
   }, [timeLeft]);
 
   useEffect(() => {
+    endTimeMsRef.current = endTimeMs;
+  }, [endTimeMs]);
+
+  useEffect(() => {
     monitoringRowRef.current = monitoringRowNumber;
   }, [monitoringRowNumber]);
 
@@ -161,33 +172,38 @@ export default function UjianPage() {
       const savedSession = localStorage.getItem(EXAM_SESSION_STORAGE_KEY);
       if (savedSession) {
         const parsed: SavedExamSession = JSON.parse(savedSession);
-        if (parsed && parsed.isLoggedIn && !parsed.isFinished && parsed.endTimeMs) {
+        if (
+          parsed &&
+          parsed.isLoggedIn &&
+          !parsed.isFinished &&
+          parsed.endTimeMs &&
+          Array.isArray(parsed.soalList) &&
+          parsed.soalList.length > 0
+        ) {
           const remainingSec = Math.max(0, Math.floor((parsed.endTimeMs - Date.now()) / 1000));
-          if (remainingSec > 0 && Array.isArray(parsed.soalList) && parsed.soalList.length > 0) {
-            const restoredJawaban = parsed.jawaban || {};
-            const restoredTerjawabCount = Object.values(restoredJawaban).filter(
-              (v) => v && v.trim() !== ''
-            ).length;
-            lastSyncedTerjawabCountRef.current = restoredTerjawabCount;
+          const restoredJawaban = parsed.jawaban || {};
+          const restoredTerjawabCount = Object.values(restoredJawaban).filter(
+            (v) => v && v.trim() !== ''
+          ).length;
+          lastSyncedTerjawabCountRef.current = restoredTerjawabCount;
 
-            setNamaPeserta(parsed.namaPeserta || '');
-            setEmailPeserta(parsed.emailPeserta || '');
-            setTeleponPeserta(parsed.teleponPeserta || '');
-            setPosisiDilamar(parsed.posisiDilamar || POSISI_OPTIONS[0]);
-            setAlamatPeserta(parsed.alamatPeserta || '');
-            setSoalList(parsed.soalList);
-            setJawaban(restoredJawaban);
-            setJawabanPraktik(parsed.jawabanPraktik || {});
-            setViolations(parsed.violations || 0);
-            setCurrentIndex(parsed.currentIndex || 0);
-            setMonitoringRowNumber(parsed.monitoringRowNumber || null);
-            setEndTimeMs(parsed.endTimeMs);
-            setTimeLeft(remainingSec);
-            setIsSessionReady(true);
-            return;
-          } else {
-            localStorage.removeItem(EXAM_SESSION_STORAGE_KEY);
-          }
+          setNamaPeserta(parsed.namaPeserta || '');
+          setEmailPeserta(parsed.emailPeserta || '');
+          setTeleponPeserta(parsed.teleponPeserta || '');
+          setPosisiDilamar(parsed.posisiDilamar || POSISI_OPTIONS[0]);
+          setAlamatPeserta(parsed.alamatPeserta || '');
+          setSoalList(parsed.soalList);
+          setJawaban(restoredJawaban);
+          setJawabanPraktik(parsed.jawabanPraktik || {});
+          setViolations(parsed.violations || 0);
+          setCurrentIndex(parsed.currentIndex || 0);
+          setMonitoringRowNumber(parsed.monitoringRowNumber || null);
+          setEndTimeMs(parsed.endTimeMs);
+          setTimeLeft(remainingSec);
+          setIsSessionReady(true);
+          return;
+        } else {
+          localStorage.removeItem(EXAM_SESSION_STORAGE_KEY);
         }
       }
 
@@ -204,7 +220,7 @@ export default function UjianPage() {
 
   // 2. Auto-save sesi ujian aktif ke localStorage setiap ada perubahan
   useEffect(() => {
-    if (!isSessionReady || isFinished || !endTimeMs) return;
+    if (!isSessionReady || isFinished || autoSubmitDone || isTimeUpRef.current || !endTimeMs) return;
     try {
       const payload: SavedExamSession = {
         isLoggedIn: true,
@@ -241,6 +257,7 @@ export default function UjianPage() {
     currentIndex,
     monitoringRowNumber,
     endTimeMs,
+    autoSubmitDone,
   ]);
 
   // Helper untuk keluar dari ujian secara otomatis apabila data peserta dihapus dari spreadsheet oleh Admin
@@ -284,15 +301,21 @@ export default function UjianPage() {
 
   // 3.B. Eksekusi pengiriman & penyimpanan jawaban ke server
   const submitUjian = useCallback(
-    async (isAutoSubmit = false) => {
+    async (isAutoSubmit = false): Promise<boolean> => {
       if (!isAutoSubmit) {
         setShowConfirmSubmit(false);
+      } else {
+        stopViolationAlarm();
+        setShowWarning(false);
+        setShowConfirmSubmit(false);
+        setUnansweredWarning('');
+        setAutoSubmitError('');
       }
       setLoading(true);
 
       try {
         const { namaPeserta, emailPeserta, posisiDilamar, alamatPeserta } = identitasRef.current;
-        const sisaWaktuStr = formatTime(timeLeftRef.current);
+        const sisaWaktuStr = isAutoSubmit ? formatTime(0) : formatTime(timeLeftRef.current);
 
         const res = await fetch('/api/submit', {
           method: 'POST',
@@ -312,7 +335,7 @@ export default function UjianPage() {
         });
         if (res.status === 404) {
           forceEjectMissingParticipant();
-          return;
+          return false;
         }
         const json = await res.json();
         if (json.success) {
@@ -395,12 +418,30 @@ export default function UjianPage() {
               .catch(() => {});
           } catch {}
 
-          setIsFinished(true);
+          if (isAutoSubmit) {
+            setAutoSubmitDone(true);
+            setAutoSubmitError('');
+          } else {
+            setIsFinished(true);
+          }
+          return true;
         } else {
-          alert('Gagal mengirim jawaban: ' + json.error);
+          if (isAutoSubmit) {
+            setAutoSubmitError(json.error || 'Gagal menyimpan jawaban otomatis ke server.');
+            hasAutoSubmittedRef.current = false;
+          } else {
+            alert('Gagal mengirim jawaban: ' + json.error);
+          }
+          return false;
         }
       } catch {
-        alert('Terjadi kesalahan jaringan saat mengirim jawaban.');
+        if (isAutoSubmit) {
+          setAutoSubmitError('Terjadi kendala jaringan saat menyimpan jawaban otomatis.');
+          hasAutoSubmittedRef.current = false;
+        } else {
+          alert('Terjadi kesalahan jaringan saat mengirim jawaban.');
+        }
+        return false;
       } finally {
         setLoading(false);
       }
@@ -408,12 +449,38 @@ export default function UjianPage() {
     [terjawabCount, forceEjectMissingParticipant]
   );
 
-  // 4. Timer Countdown + Sinkronisasi Sisa Waktu ke Sheet Monitoring_Peserta setiap 2 menit (120 detik)
-  //    serta pengecekan validitas sesi ke RAM Cache server setiap 15 detik agar langsung keluar jika di-reset Admin
+  // 3.C. Handler saat peserta menekan tombol "OKE" pada Pop-up Waktu Habis
+  const handleAcknowledgeTimeUp = useCallback(async () => {
+    if (loading) return;
+    if (!autoSubmitDone) {
+      const ok = await submitUjian(true);
+      if (!ok) return;
+    }
+
+    try {
+      if (lobbyStatus) {
+        sessionStorage.setItem('bps_temp_lobby_login_v1', JSON.stringify(lobbyStatus));
+      }
+    } catch {}
+
+    const isAllCompleted =
+      Boolean(lobbyStatus?.wawancaraApproved) ||
+      Boolean(lobbyStatus?.statusKelulusan && lobbyStatus.statusKelulusan.trim());
+    if (isAllCompleted) {
+      router.replace('/pengumuman');
+    } else {
+      router.replace('/lobby');
+    }
+  }, [loading, autoSubmitDone, submitUjian, lobbyStatus, router]);
+
+  // 4. Timer Countdown (Sinkron dengan jam asli endTimeMs agar tidak melambat saat peserta di tab Canva/Spreadsheet)
+  //    + Sinkronisasi Sisa Waktu ke Sheet Monitoring_Peserta setiap 2 menit (120 detik)
+  //    + Pengecekan validitas sesi ke RAM Cache server setiap 15 detik
   useEffect(() => {
     if (!isSessionReady || isFinished) return;
 
     const verifyActiveParticipantInSheet = () => {
+      if (isTimeUpRef.current) return;
       const params = new URLSearchParams();
       if (monitoringRowRef.current) params.set('rowNumber', String(monitoringRowRef.current));
       if (identitasRef.current.emailPeserta) params.set('email', identitasRef.current.emailPeserta);
@@ -429,49 +496,96 @@ export default function UjianPage() {
         .catch(() => {});
     };
 
+    const triggerTimeUpNow = () => {
+      isTimeUpRef.current = true;
+      timeLeftRef.current = 0;
+      setTimeLeft(0);
+      stopViolationAlarm();
+      showWarningRef.current = false;
+      setShowWarning(false);
+      setShowConfirmSubmit(false);
+      setUnansweredWarning('');
+      setShowTimeUpModal(true);
+
+      if (!hasAutoSubmittedRef.current) {
+        hasAutoSubmittedRef.current = true;
+        submitUjian(true);
+      }
+    };
+
+    // Jika saat dimuat waktu sudah habis (misal peserta baru membuka kembali tab setelah waktu berakhir)
+    if (
+      (endTimeMsRef.current && Date.now() >= endTimeMsRef.current) ||
+      timeLeftRef.current <= 0
+    ) {
+      triggerTimeUpNow();
+      return;
+    }
+
     // Cek segera saat halaman /ujian dibuka / dipulihkan
     verifyActiveParticipantInSheet();
 
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          submitUjian(true);
-          return 0;
-        }
-        const nextTime = prev - 1;
-        if (nextTime % 120 === 0 && monitoringRowRef.current) {
-          const currentTerjawab = Object.values(jawabanRef.current).filter(
-            (v) => v && v.trim() !== ''
-          ).length;
-          lastSyncedTerjawabCountRef.current = currentTerjawab;
+    let tickCounter = 0;
+    const evaluateRemainingTime = () => {
+      if (isTimeUpRef.current) return;
+      const targetEndMs = endTimeMsRef.current;
+      const nextTime = targetEndMs
+        ? Math.max(0, Math.floor((targetEndMs - Date.now()) / 1000))
+        : Math.max(0, timeLeftRef.current - 1);
 
-          fetch('/api/start', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              rowNumber: monitoringRowRef.current,
-              emailPeserta: identitasRef.current.emailPeserta,
-              namaPeserta: identitasRef.current.namaPeserta,
-              sisaWaktuStr: formatTime(nextTime),
-              terjawabCount: currentTerjawab,
-              totalSoal: soalListRef.current.length,
-              statusUjian: 'SEDANG MENGERJAKAN',
-            }),
+      if (nextTime <= 0) {
+        triggerTimeUpNow();
+        return;
+      }
+
+      timeLeftRef.current = nextTime;
+      setTimeLeft(nextTime);
+      tickCounter += 1;
+
+      if (tickCounter % 120 === 0 && monitoringRowRef.current) {
+        const currentTerjawab = Object.values(jawabanRef.current).filter(
+          (v) => v && v.trim() !== ''
+        ).length;
+        lastSyncedTerjawabCountRef.current = currentTerjawab;
+
+        fetch('/api/start', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            rowNumber: monitoringRowRef.current,
+            emailPeserta: identitasRef.current.emailPeserta,
+            namaPeserta: identitasRef.current.namaPeserta,
+            sisaWaktuStr: formatTime(nextTime),
+            terjawabCount: currentTerjawab,
+            totalSoal: soalListRef.current.length,
+            statusUjian: 'SEDANG MENGERJAKAN',
+          }),
+        })
+          .then(async (res) => {
+            if (res.status === 404) {
+              forceEjectMissingParticipant();
+            }
           })
-            .then(async (res) => {
-              if (res.status === 404) {
-                forceEjectMissingParticipant();
-              }
-            })
-            .catch(() => {});
-        } else if (nextTime % 15 === 0) {
-          verifyActiveParticipantInSheet();
-        }
-        return nextTime;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
+          .catch(() => {});
+      } else if (tickCounter % 15 === 0) {
+        verifyActiveParticipantInSheet();
+      }
+    };
+
+    const timer = setInterval(evaluateRemainingTime, 1000);
+    const handleFocusOrVisible = () => {
+      if (!document.hidden) {
+        evaluateRemainingTime();
+      }
+    };
+    window.addEventListener('focus', handleFocusOrVisible);
+    document.addEventListener('visibilitychange', handleFocusOrVisible);
+
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', handleFocusOrVisible);
+      document.removeEventListener('visibilitychange', handleFocusOrVisible);
+    };
   }, [isSessionReady, isFinished, submitUjian, forceEjectMissingParticipant]);
 
   // 4.5. Sinkronisasi ke Monitoring_Peserta HANYA jika jumlah soal terjawab berubah (Debounce 5 detik)
@@ -578,6 +692,14 @@ export default function UjianPage() {
     };
 
     const handleVisibilityChange = () => {
+      // Jika waktu ujian sudah habis, jangan picu alarm / modal pelanggaran saat peserta kembali ke tab ujian
+      if (
+        isTimeUpRef.current ||
+        (endTimeMsRef.current && Date.now() >= endTimeMsRef.current)
+      ) {
+        return;
+      }
+
       if (document.hidden) {
         // Jika peserta keluar lagi saat masa pengamatan Paste, kirim log sebelumnya terlebih dahulu
         flushPendingLog();
@@ -670,12 +792,14 @@ export default function UjianPage() {
 
   // Handler perubahan jawaban PG / Deskripsi
   const handlePilihOpsi = (idSoal: number, nilaiJawaban: string) => {
+    if (isTimeUpRef.current || showTimeUpModal) return;
     setUnansweredWarning('');
     setJawaban((prev) => ({ ...prev, [idSoal]: nilaiJawaban }));
   };
 
   // Handler perubahan jawaban Praktik
   const handleUpdatePraktik = (idSoal: number, patch: Partial<DataPraktik>) => {
+    if (isTimeUpRef.current || showTimeUpModal) return;
     setUnansweredWarning('');
     setJawabanPraktik((prev) => {
       const updated = { ...(prev[idSoal] || {}), ...patch };
@@ -736,7 +860,19 @@ export default function UjianPage() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col">
-      {showWarning && (
+      {showTimeUpModal && (
+        <TimeUpModal
+          namaPeserta={namaPeserta}
+          posisiDilamar={posisiDilamar}
+          terjawabCount={totalTerjawab}
+          totalSoal={soalList.length}
+          loading={loading}
+          submitError={autoSubmitError}
+          onAcknowledge={handleAcknowledgeTimeUp}
+        />
+      )}
+
+      {!showTimeUpModal && showWarning && (
         <ViolationModal
           violations={violations}
           onClose={() => {
@@ -746,14 +882,14 @@ export default function UjianPage() {
         />
       )}
 
-      {unansweredWarning && (
+      {!showTimeUpModal && unansweredWarning && (
         <UnansweredModal
           message={unansweredWarning}
           onClose={() => setUnansweredWarning('')}
         />
       )}
 
-      {showConfirmSubmit && (
+      {!showTimeUpModal && showConfirmSubmit && (
         <ConfirmSubmitModal
           terjawabCount={totalTerjawab}
           totalSoal={soalList.length}

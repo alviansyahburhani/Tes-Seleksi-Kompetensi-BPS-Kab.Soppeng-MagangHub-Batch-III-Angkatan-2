@@ -26,18 +26,22 @@ export default function LobbyPage() {
   // 1. Cek sesi ujian aktif atau pulihkan data Lobby dari localStorage / sessionStorage
   useEffect(() => {
     try {
-      // Jika sedang mengerjakan soal ujian dan waktu masih tersisa, arahkan ke halaman ujian (/ujian)
+      // Jika sedang mengerjakan soal ujian (atau sesi ujian belum selesai di-submit), arahkan ke halaman ujian (/ujian)
       const savedSession = localStorage.getItem(EXAM_SESSION_STORAGE_KEY);
       if (savedSession) {
         const parsed: SavedExamSession = JSON.parse(savedSession);
-        if (parsed && parsed.isLoggedIn && !parsed.isFinished && parsed.endTimeMs) {
-          const remainingSec = Math.max(0, Math.floor((parsed.endTimeMs - Date.now()) / 1000));
-          if (remainingSec > 0) {
-            router.replace('/ujian');
-            return;
-          } else {
-            localStorage.removeItem(EXAM_SESSION_STORAGE_KEY);
-          }
+        if (
+          parsed &&
+          parsed.isLoggedIn &&
+          !parsed.isFinished &&
+          parsed.endTimeMs &&
+          Array.isArray(parsed.soalList) &&
+          parsed.soalList.length > 0
+        ) {
+          router.replace('/ujian');
+          return;
+        } else {
+          localStorage.removeItem(EXAM_SESSION_STORAGE_KEY);
         }
       }
 

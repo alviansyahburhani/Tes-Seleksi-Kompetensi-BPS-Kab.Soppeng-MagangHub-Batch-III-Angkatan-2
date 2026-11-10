@@ -5,7 +5,6 @@ import { getActiveViolationAlerts } from '@/lib/violationAlertStore';
 import { getCachedMonitoringRows, invalidateMonitoringCache } from '@/lib/sheetsCache';
 import {
   clearParticipantServerState,
-  getOrAssignAttendanceQueue,
   getPendingAccountResetRequests,
   getServerParticipantSession,
   hasParticipantExamMemory,
@@ -15,6 +14,15 @@ import {
   setKompetensiApproved,
   verifyAdminPin,
 } from '@/lib/security';
+
+function parseNomorAntrean(rawVal: unknown): number | null {
+  const str = (rawVal ?? '').toString().trim();
+  if (!str) return null;
+  const match = str.match(/\d+/);
+  if (!match) return null;
+  const num = parseInt(match[0], 10);
+  return Number.isFinite(num) && num > 0 ? num : null;
+}
 
 export async function GET(request: Request) {
   try {
@@ -39,6 +47,22 @@ export async function GET(request: Request) {
       monitoringRows = [];
     }
 
+    // Hitung angka antrean tertinggi yang sudah tercatat di Kolom M (index 12) pada peserta aktif
+    let maxExistingQueue = 0;
+    for (const row of monitoringRows) {
+      const rNama = (row?.[0] || '').toString().trim();
+      const rEmail = (row?.[1] || '').toString().trim();
+      const rTelp = (row?.[2] || '').toString().trim();
+      const rPos = (row?.[3] || '').toString().trim();
+      if (!rNama || !rEmail || !rTelp || !rPos) continue;
+      const qNum = parseNomorAntrean(row?.[12]);
+      if (qNum && qNum > maxExistingQueue) {
+        maxExistingQueue = qNum;
+      }
+    }
+
+    const pendingColMUpdates: { range: string; values: string[][] }[] = [];
+
     const pesertaList = monitoringRows
       .map((row: any, idx: number) => {
         const rowNumber = idx + 2;
@@ -53,16 +77,38 @@ export async function GET(request: Request) {
         const statusUjian = (row?.[9] || '').toString().trim();
         const statusWawancara = (row?.[10] || '').toString().trim();
         const statusKelulusan = (row?.[11] || '').toString().trim();
+        const rawAntreanColM = (row?.[12] || '').toString().trim();
 
         if (!namaPeserta || !emailPeserta || !teleponPeserta || !posisiDilamar) {
           if (!namaPeserta && emailPeserta) {
             clearParticipantServerState(rowNumber, emailPeserta, '');
+            // Jika baris peserta dihapus Admin tetapi Kolom M masih menyisakan angka antrean lama, bersihkan Kolom M
+            if (rawAntreanColM) {
+              row[12] = '';
+              pendingColMUpdates.push({
+                range: `${SHEET_NAMES.MONITORING}!M${rowNumber}`,
+                values: [['']],
+              });
+            }
           }
           return null;
         }
 
         if (!waktuMulai && !statusUjian && hasParticipantExamMemory(rowNumber, emailPeserta, namaPeserta)) {
           clearParticipantServerState(rowNumber, emailPeserta, namaPeserta);
+        }
+
+        // Tarik Nomor Antrean dari Kolom M (index 12).
+        // Jika peserta sudah mengisi daftar hadir tetapi Kolom M masih kosong, isi otomatis dimulai dari 1
+        let nomorAntrean = parseNomorAntrean(rawAntreanColM);
+        if (!nomorAntrean) {
+          maxExistingQueue += 1;
+          nomorAntrean = maxExistingQueue;
+          row[12] = String(nomorAntrean);
+          pendingColMUpdates.push({
+            range: `${SHEET_NAMES.MONITORING}!M${rowNumber}`,
+            values: [[String(nomorAntrean)]],
+          });
         }
 
         // Parse "5 / 20 Soal" menjadi angka terjawab & totalSoal
@@ -98,13 +144,10 @@ export async function GET(request: Request) {
           upperWawancara.includes('SELESAI') ||
           upperWawancara.includes('APPROVED');
 
-        const queueInfo = getOrAssignAttendanceQueue(rowNumber, emailPeserta);
-
         return {
           id: idx + 1,
           rowNumber,
-          nomorAntrean: queueInfo.order,
-          waktuHadir: queueInfo.waktuHadir,
+          nomorAntrean,
           namaPeserta,
           emailPeserta,
           teleponPeserta,
@@ -124,6 +167,22 @@ export async function GET(request: Request) {
         };
       })
       .filter(Boolean);
+
+    // Jika ada Kolom M yang perlu disinkronkan ke Google Sheets (misal pengisian awal / pembersihan baris yang di-reset),
+    // jalankan di background tanpa menghambat response monitoring
+    if (pendingColMUpdates.length > 0) {
+      getGoogleSheetsInstance()
+        .then(({ sheets, spreadsheetId }) =>
+          sheets.spreadsheets.values.batchUpdate({
+            spreadsheetId,
+            requestBody: {
+              valueInputOption: 'RAW',
+              data: pendingColMUpdates,
+            },
+          })
+        )
+        .catch(() => {});
+    }
 
     return NextResponse.json({
       success: true,
