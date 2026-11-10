@@ -10,6 +10,7 @@ import {
 } from '@/constants/exam';
 import { ParticipantLobbyStatus, SavedExamSession, Soal } from '@/types/exam';
 import { isSoalMatchPosisi, shuffleArray } from '@/utils/examHelper';
+import { unlockViolationAlarm } from '@/utils/mediaHelper';
 import ParticipantLobbyView from '@/components/exam/ParticipantLobbyView';
 
 export default function LobbyPage() {
@@ -88,6 +89,9 @@ export default function LobbyPage() {
             localStorage.removeItem(EXAM_SESSION_STORAGE_KEY);
             localStorage.removeItem(PARTICIPANT_LOBBY_STORAGE_KEY);
             localStorage.removeItem(TERMS_ACCEPTED_STORAGE_KEY);
+            try {
+              sessionStorage.removeItem('bps_temp_lobby_login_v1');
+            } catch {}
             router.replace('/login');
             return null;
           }
@@ -180,6 +184,9 @@ export default function LobbyPage() {
         localStorage.removeItem(EXAM_SESSION_STORAGE_KEY);
         localStorage.removeItem(PARTICIPANT_LOBBY_STORAGE_KEY);
         localStorage.removeItem(TERMS_ACCEPTED_STORAGE_KEY);
+        try {
+          sessionStorage.removeItem('bps_temp_lobby_login_v1');
+        } catch {}
         router.replace('/login');
         return;
       }
@@ -248,6 +255,7 @@ export default function LobbyPage() {
   // 3. Mulai Ujian Kompetensi (Simpan sesi ujian ke localStorage & arahkan ke halaman ujian)
   const handleStartCompetencyExam = async () => {
     if (!lobbyStatus) return;
+    unlockViolationAlarm();
     setLobbyError('');
     setStartingExam(true);
 

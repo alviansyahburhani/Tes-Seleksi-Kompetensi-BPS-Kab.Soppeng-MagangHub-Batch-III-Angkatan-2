@@ -9,6 +9,8 @@ import type { ActiveViolationAlert } from '@/lib/violationAlertStore';
 interface PesertaMonitoring {
   id: number;
   rowNumber: number;
+  nomorAntrean?: number;
+  waktuHadir?: string;
   namaPeserta: string;
   emailPeserta?: string;
   teleponPeserta?: string;
@@ -143,7 +145,7 @@ export default function MonitoringAdminPage() {
       | 'APPROVE_WAWANCARA'
       | 'REVOKE_WAWANCARA',
     peserta?: PesertaMonitoring,
-    batchRows?: { rowNumber: number; namaPeserta: string }[]
+    batchRows?: { rowNumber: number; emailPeserta?: string; namaPeserta: string }[]
   ) => {
     setActionLoadingRow(batchRows ? 'ALL' : peserta?.rowNumber || null);
     try {
@@ -156,6 +158,7 @@ export default function MonitoringAdminPage() {
         body: JSON.stringify({
           type,
           rowNumber: peserta?.rowNumber,
+          emailPeserta: peserta?.emailPeserta,
           namaPeserta: peserta?.namaPeserta,
           rows: batchRows,
         }),
@@ -232,23 +235,23 @@ export default function MonitoringAdminPage() {
       if (aDone !== bDone) {
         return aDone - bDone;
       }
-      return b.id - a.id;
+      return (a.nomorAntrean ?? a.id) - (b.nomorAntrean ?? b.id);
     });
 
-  // 2. Daftar untuk Tab APPROVE KOMPETENSI (Peserta yang belum di-approve ditaruh paling atas)
+  // 2. Daftar untuk Tab APPROVE KOMPETENSI (Peserta yang belum di-approve ditaruh paling atas sesuai urutan kedatangan)
   const filteredApproveKompetensi = [...baseFiltered].sort((a, b) => {
     const aPriority = !a.kompetensiApproved ? 0 : a.statusUjian ? 2 : 1;
     const bPriority = !b.kompetensiApproved ? 0 : b.statusUjian ? 2 : 1;
     if (aPriority !== bPriority) return aPriority - bPriority;
-    return b.id - a.id;
+    return (a.nomorAntrean ?? a.id) - (b.nomorAntrean ?? b.id);
   });
 
-  // 3. Daftar untuk Tab APPROVE WAWANCARA (Peserta yang belum wawancara ditaruh paling atas)
+  // 3. Daftar untuk Tab APPROVE WAWANCARA (Diurutkan berdasarkan antrean kedatangan / First Come First Served, yang belum wawancara di atas)
   const filteredApproveWawancara = [...baseFiltered].sort((a, b) => {
     const aDone = a.wawancaraApproved ? 1 : 0;
     const bDone = b.wawancaraApproved ? 1 : 0;
     if (aDone !== bDone) return aDone - bDone;
-    return b.id - a.id;
+    return (a.nomorAntrean ?? a.id) - (b.nomorAntrean ?? b.id);
   });
 
   // Hitung badge counter untuk Sidebar
@@ -1292,6 +1295,7 @@ export default function MonitoringAdminPage() {
                         .filter((p) => !p.kompetensiApproved && !p.statusUjian)
                         .map((p) => ({
                           rowNumber: p.rowNumber,
+                          emailPeserta: p.emailPeserta,
                           namaPeserta: p.namaPeserta,
                         }));
                       handleApproveAction('APPROVE_KOMPETENSI', undefined, unapprovedRows);
@@ -1481,8 +1485,8 @@ export default function MonitoringAdminPage() {
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-slate-900 text-white text-[11px] font-bold uppercase tracking-wider">
-                        <th className="py-3.5 px-4 border-r border-slate-800 text-center w-14">
-                          No
+                        <th className="py-3.5 px-4 border-r border-slate-800 text-center w-24">
+                          Antrean
                         </th>
                         <th className="py-3.5 px-4 border-r border-slate-800">Nama Peserta</th>
                         <th className="py-3.5 px-4 border-r border-slate-800">Formasi Posisi</th>
@@ -1507,6 +1511,7 @@ export default function MonitoringAdminPage() {
                           const isKompetensiDone = p.statusUjian.toUpperCase().includes('SELESAI');
                           const isKompetensiWorking = p.statusUjian.toUpperCase().includes('SEDANG');
                           const isRowLoading = actionLoadingRow === p.rowNumber;
+                          const queueNumber = p.nomorAntrean ?? idx + 1;
 
                           return (
                             <tr
@@ -1516,8 +1521,21 @@ export default function MonitoringAdminPage() {
                                 : 'bg-white hover:bg-slate-50/90'
                                 }`}
                             >
-                              <td className="py-4 px-4 border-r border-slate-100 font-bold text-slate-500 text-center">
-                                {idx + 1}
+                              <td className="py-4 px-4 border-r border-slate-100 text-center">
+                                <span
+                                  className={`inline-flex items-center justify-center px-2.5 py-1 rounded-lg text-xs font-extrabold tracking-wide ${
+                                    p.wawancaraApproved
+                                      ? 'bg-slate-100 text-slate-500'
+                                      : 'bg-[#FEF3C7] text-amber-900 border border-amber-300'
+                                  }`}
+                                >
+                                  #{queueNumber}
+                                </span>
+                                {p.waktuHadir && (
+                                  <p className="text-[10px] font-semibold text-slate-400 mt-1">
+                                    {p.waktuHadir}
+                                  </p>
+                                )}
                               </td>
                               <td className="py-4 px-4 border-r border-slate-100">
                                 <p className="font-bold text-slate-900 text-sm">{p.namaPeserta}</p>

@@ -345,7 +345,7 @@ export default function LoginView({
                     <strong className="font-semibold text-slate-900">Akses Ujian:</strong> Untuk memulai Tes Seleksi Kompetensi, peserta wajib menunggu persetujuan akses (<em>approval</em>) terlebih dahulu dari Admin Ruangan.
                   </li>
                   <li>
-                    <strong className="font-semibold text-slate-900">Durasi Pengerjaan:</strong> Waktu pengerjaan Tes Seleksi Kompetensi adalah <strong className="font-semibold text-slate-900">60 menit</strong> dan akan dihitung mundur secara otomatis sesaat setelah peserta menekan tombol <strong className="font-semibold text-slate-900">&quot;Mulai Ujian Sekarang&quot;</strong>.
+                    <strong className="font-semibold text-slate-900">Durasi Pengerjaan:</strong> Waktu pengerjaan Tes Seleksi Kompetensi adalah <strong className="font-semibold text-slate-900">120 menit</strong> dan akan dihitung mundur secara otomatis sesaat setelah peserta menekan tombol <strong className="font-semibold text-slate-900">&quot;Mulai Ujian Sekarang&quot;</strong>.
                   </li>
                   <li>
                     <strong className="font-semibold text-slate-900">Pengumpulan Tugas Praktik:</strong> Hasil pengerjaan soal Praktik Kompetensi wajib dikumpulkan dalam bentuk tautan (<em>link</em>) dengan pengaturan akses publik (<strong className="font-semibold text-slate-900">&quot;Anyone with the link&quot;</strong> atau <strong className="font-semibold text-slate-900">&quot;Siapa saja yang memiliki link dapat melihat&quot;</strong>).

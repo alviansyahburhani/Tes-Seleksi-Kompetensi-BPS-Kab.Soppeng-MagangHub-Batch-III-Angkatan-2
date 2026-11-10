@@ -64,6 +64,11 @@ export interface ResetAccountRequest {
   waktu: string;
 }
 
+export interface AttendanceQueueInfo {
+  order: number;
+  waktuHadir: string;
+}
+
 const globalForSecurity = globalThis as unknown as {
   bpsParticipantSessions?: Map<string, ServerParticipantSession>;
   bpsSubmittedKeys?: Set<string>;
@@ -72,6 +77,8 @@ const globalForSecurity = globalThis as unknown as {
   bpsResetAccountRequests?: Map<string, ResetAccountRequest>;
   bpsApprovedResetKeys?: Set<string>;
   bpsRejectedResetKeys?: Set<string>;
+  bpsAttendanceQueue?: Map<string, AttendanceQueueInfo>;
+  bpsAttendanceCounter?: number;
 };
 
 if (!globalForSecurity.bpsParticipantSessions) {
@@ -94,6 +101,12 @@ if (!globalForSecurity.bpsApprovedResetKeys) {
 }
 if (!globalForSecurity.bpsRejectedResetKeys) {
   globalForSecurity.bpsRejectedResetKeys = new Set<string>();
+}
+if (!globalForSecurity.bpsAttendanceQueue) {
+  globalForSecurity.bpsAttendanceQueue = new Map<string, AttendanceQueueInfo>();
+}
+if (typeof globalForSecurity.bpsAttendanceCounter !== 'number') {
+  globalForSecurity.bpsAttendanceCounter = 0;
 }
 
 function getSecretKey(): string {
@@ -274,6 +287,50 @@ export function hasParticipantExamMemory(
 }
 
 /**
+ * Mencatat urutan kehadiran peserta saat mengisi Daftar Hadir (First-Come First-Served)
+ * di memori server untuk keperluan antrean di halaman /monitoring (tanpa mengubah urutan baris Spreadsheet).
+ */
+export function recordParticipantAttendance(
+  rowNumber?: number | null,
+  email?: string
+): AttendanceQueueInfo {
+  const queueMap = globalForSecurity.bpsAttendanceQueue!;
+  const emailKey = normalizeParticipantKey(email, '');
+  const rowKey = rowNumber ? `row_${Number(rowNumber)}` : '';
+  const primaryKey = emailKey || rowKey;
+
+  const existing = (emailKey && queueMap.get(emailKey)) || (rowKey && queueMap.get(rowKey));
+  if (existing) {
+    if (emailKey) queueMap.set(emailKey, existing);
+    if (rowKey) queueMap.set(rowKey, existing);
+    return existing;
+  }
+
+  globalForSecurity.bpsAttendanceCounter = (globalForSecurity.bpsAttendanceCounter || 0) + 1;
+  const info: AttendanceQueueInfo = {
+    order: globalForSecurity.bpsAttendanceCounter,
+    waktuHadir: new Date().toLocaleTimeString('id-ID', {
+      timeZone: 'Asia/Jakarta',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    }),
+  };
+
+  if (primaryKey) queueMap.set(primaryKey, info);
+  if (emailKey) queueMap.set(emailKey, info);
+  if (rowKey) queueMap.set(rowKey, info);
+  return info;
+}
+
+export function getOrAssignAttendanceQueue(
+  rowNumber?: number | null,
+  email?: string
+): AttendanceQueueInfo {
+  return recordParticipantAttendance(rowNumber, email);
+}
+
+/**
  * Membersihkan seluruh state in-memory di server (Approve Kompetensi, Sesi Ujian, Status Submit, Reset Akun)
  * ketika data peserta di Monitoring_Peserta dihapus / di-reset oleh Admin.
  */
@@ -286,16 +343,19 @@ export function clearParticipantServerState(
   const keySet = globalForSecurity.bpsApprovedKompetensiKeys!;
   const submittedSet = globalForSecurity.bpsSubmittedKeys!;
   const sessionStore = globalForSecurity.bpsParticipantSessions!;
+  const queueMap = globalForSecurity.bpsAttendanceQueue!;
 
   const emailKey = normalizeParticipantKey(email, '');
   const nameKey = normalizeParticipantKey('', nama);
 
   if (rowNumber) {
     rowSet.delete(Number(rowNumber));
+    queueMap.delete(`row_${Number(rowNumber)}`);
   }
   if (emailKey) {
     keySet.delete(emailKey);
     submittedSet.delete(emailKey);
+    queueMap.delete(emailKey);
   }
   if (nameKey) {
     keySet.delete(nameKey);
@@ -317,6 +377,7 @@ export function clearParticipantServerState(
       if (sessEmailKey) {
         keySet.delete(sessEmailKey);
         submittedSet.delete(sessEmailKey);
+        queueMap.delete(sessEmailKey);
       }
       if (sessNameKey) {
         keySet.delete(sessNameKey);

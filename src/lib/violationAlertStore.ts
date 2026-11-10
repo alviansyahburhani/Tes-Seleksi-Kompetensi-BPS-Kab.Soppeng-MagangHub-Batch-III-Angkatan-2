@@ -9,7 +9,7 @@ export interface ActiveViolationAlert {
   pelanggaranKe?: number;
 }
 
-const ALERT_TTL_MS = 60 * 60 * 1000; // Simpan riwayat alert aktif selama 60 menit (selama sesi ujian berlangsung)
+const ALERT_TTL_MS = 120 * 60 * 1000; // Simpan riwayat alert aktif selama 120 menit (selama sesi ujian berlangsung)
 
 const globalForAlert = globalThis as unknown as {
   bpsViolationAlerts?: ActiveViolationAlert[];

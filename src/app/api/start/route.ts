@@ -9,6 +9,7 @@ import {
   getServerParticipantSession,
   hasParticipantExamMemory,
   isKompetensiApproved,
+  recordParticipantAttendance,
   registerServerParticipantSession,
   requestAccountReset,
   sanitizeSheetRow,
@@ -301,7 +302,7 @@ export async function POST(request: Request) {
       posisiDilamar,
       alamatPeserta,
       totalSoal,
-      durasiDetik = 3600,
+      durasiDetik = 7200,
     } = body;
 
     const cleanEmail = (emailPeserta || '').toString().trim().toLowerCase();
@@ -502,6 +503,9 @@ export async function POST(request: Request) {
           clearParticipantServerState(existingRowNumber, finalEmail, prevNama);
         }
       }
+
+      // Catat urutan waktu kedatangan peserta di memori server untuk antrean di halaman /monitoring
+      recordParticipantAttendance(existingRowNumber, finalEmail);
 
       const upperUjian = statusUjian.toUpperCase();
       const upperWawancara = statusWawancara.toUpperCase();

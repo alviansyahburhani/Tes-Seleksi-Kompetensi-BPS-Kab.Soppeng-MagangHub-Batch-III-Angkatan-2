@@ -1,19 +1,23 @@
 /**
- * Memutar file audio `/alarm.wav` dengan penguat suara (Web Audio API Gain Booster)
- * dan mode looping agar terus berbunyi sampai dihentikan secara eksplisit.
+ * Memutar file audio murni `/alarm.wav` dari folder `public` secara instan saat peserta keluar tab
+ * (tanpa synthesizer buatan dan tanpa distorsi compressor).
  *
- * Catatan Autoplay Policy:
- * AudioContext yang dibuat di luar interaksi pengguna (mis. di event `visibilitychange`)
- * akan berstatus "suspended" sehingga alarm tidak terdengar. Karena itu AudioContext &
- * elemen audio disiapkan lebih awal lewat `unlockViolationAlarm()` yang dipanggil saat
- * peserta pertama kali klik / sentuh / menekan tombol di halaman ujian.
+ * Agar suara langsung berbunyi tepat pada saat keluar tab (ketika `document.hidden === true`)
+ * dan tidak ditunda oleh browser hingga peserta kembali ke tab ujian:
+ * 1. File `/alarm.wav` di-fetch dan di-decode lebih awal menjadi `AudioBuffer` di memori.
+ * 2. Saat peserta pertama kali klik / sentuh / tekan tombol (`unlockViolationAlarm()`),
+ *    `AudioContext` diaktifkan (`running`) dan elemen `HTMLAudioElement('/alarm.wav')` di-unlock.
+ * 3. Saat peserta keluar tab, `AudioBufferSourceNode` memutar buffer `/alarm.wav` secara instan
+ *    meskipun tab berada di background.
  */
 
-// Rantai audio ber-booster yang sudah di-unlock (dipakai ulang, tidak ditutup saat stop)
-let boostedAudio: HTMLAudioElement | null = null;
-let boostedCtx: AudioContext | null = null;
+let sharedAudioCtx: AudioContext | null = null;
+let decodedAlarmBuffer: AudioBuffer | null = null;
+let isFetchingBuffer = false;
 
-// Elemen audio yang sedang berbunyi (boosted atau polos tanpa booster)
+let activeBufferSource: AudioBufferSourceNode | null = null;
+let unlockedAudioEl: HTMLAudioElement | null = null;
+let isAudioElUnlocked = false;
 let activeAudioElement: HTMLAudioElement | null = null;
 
 function getAudioContextClass(): typeof AudioContext | undefined {
@@ -21,50 +25,68 @@ function getAudioContextClass(): typeof AudioContext | undefined {
   return window.AudioContext || (window as any).webkitAudioContext;
 }
 
+function preloadAlarmBuffer(ctx: AudioContext): void {
+  if (decodedAlarmBuffer || isFetchingBuffer || typeof window === 'undefined') return;
+  isFetchingBuffer = true;
+
+  fetch('/alarm.wav')
+    .then((res) => res.arrayBuffer())
+    .then((arrayBuf) => ctx.decodeAudioData(arrayBuf))
+    .then((audioBuf) => {
+      decodedAlarmBuffer = audioBuf;
+    })
+    .catch(() => {
+      isFetchingBuffer = false;
+    });
+}
+
 /**
- * Siapkan AudioContext + elemen audio ber-booster. WAJIB dipanggil dari handler interaksi
- * pengguna (click / pointerdown / keydown) agar diizinkan browser. Aman dipanggil berkali-kali.
+ * Siapkan AudioContext + preload buffer `/alarm.wav` + unlock HTMLAudioElement.
+ * Dipanggil dari interaksi pengguna (pointerdown / keydown / touchstart) di halaman ujian.
  */
 export function unlockViolationAlarm(): void {
   try {
     const AudioContextClass = getAudioContextClass();
-    if (!boostedAudio) {
-      const audio = new Audio('/alarm.wav');
-      audio.preload = 'auto';
-      audio.volume = 1.0; // Volume penuh 100%
-
-      if (AudioContextClass) {
-        try {
-          const audioCtx = new AudioContextClass();
-          const source = audioCtx.createMediaElementSource(audio);
-          const compressor = audioCtx.createDynamicsCompressor();
-          compressor.threshold.setValueAtTime(-50, audioCtx.currentTime);
-          compressor.knee.setValueAtTime(40, audioCtx.currentTime);
-          compressor.ratio.setValueAtTime(12, audioCtx.currentTime);
-          compressor.attack.setValueAtTime(0, audioCtx.currentTime);
-          compressor.release.setValueAtTime(0.25, audioCtx.currentTime);
-
-          const gainNode = audioCtx.createGain();
-          // Boost gain 3.5x lipat di atas normal
-          gainNode.gain.setValueAtTime(3.5, audioCtx.currentTime);
-
-          source.connect(compressor);
-          compressor.connect(gainNode);
-          gainNode.connect(audioCtx.destination);
-
-          boostedCtx = audioCtx;
-        } catch {
-          // Jika MediaElementSource gagal, elemen audio tetap dipakai tanpa booster
-          boostedCtx = null;
-        }
+    if (AudioContextClass) {
+      if (!sharedAudioCtx) {
+        sharedAudioCtx = new AudioContextClass();
       }
-
-      audio.load();
-      boostedAudio = audio;
+      if (sharedAudioCtx.state !== 'running') {
+        sharedAudioCtx.resume().catch(() => {});
+      }
+      preloadAlarmBuffer(sharedAudioCtx);
     }
 
-    if (boostedCtx && boostedCtx.state !== 'running') {
-      boostedCtx.resume().catch(() => {});
+    if (!unlockedAudioEl && typeof window !== 'undefined') {
+      const audio = new Audio('/alarm.wav');
+      audio.preload = 'auto';
+      audio.volume = 1.0;
+      audio.load();
+      unlockedAudioEl = audio;
+    }
+
+    // Unlock HTMLAudioElement dengan micro-play senyap saat interaksi pertama agar browser
+    // mengizinkan pemutaran instan meskipun tab sedang berada di background
+    if (unlockedAudioEl && !isAudioElUnlocked && !activeAudioElement) {
+      isAudioElUnlocked = true;
+      unlockedAudioEl.muted = true;
+      const playPromise = unlockedAudioEl.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            if (activeAudioElement !== unlockedAudioEl) {
+              unlockedAudioEl!.pause();
+              unlockedAudioEl!.currentTime = 0;
+            }
+            unlockedAudioEl!.muted = false;
+          })
+          .catch(() => {
+            unlockedAudioEl!.muted = false;
+            isAudioElUnlocked = false;
+          });
+      } else {
+        unlockedAudioEl.muted = false;
+      }
     }
   } catch {
     // Abaikan
@@ -73,42 +95,46 @@ export function unlockViolationAlarm(): void {
 
 export function playViolationAlarm(loop = true): void {
   try {
-    // Jika alarm sudah sedang berbunyi, pastikan tetap menyala dan tidak menumpuk
-    if (activeAudioElement) {
+    // Jika sudah sedang berbunyi (baik via BufferSource maupun HTMLAudioElement), jangan ditumpuk
+    if (activeBufferSource) {
+      activeBufferSource.loop = loop;
+      return;
+    }
+    if (activeAudioElement && !activeAudioElement.paused) {
       activeAudioElement.loop = loop;
-      if (activeAudioElement.paused) {
-        activeAudioElement.currentTime = 0;
-        activeAudioElement.play().catch(() => playFallbackSynthAlarm());
+      return;
+    }
+
+    // Prioritas 1: Putar buffer murni `/alarm.wav` melalui Web Audio API jika sudah siap & running.
+    // Cara ini 100% langsung berbunyi saat pindah tab (tidak di-delay browser sampai kembali ke tab).
+    if (sharedAudioCtx && decodedAlarmBuffer) {
+      if (sharedAudioCtx.state !== 'running') {
+        sharedAudioCtx.resume().catch(() => {});
       }
-      return;
+      if (sharedAudioCtx.state === 'running') {
+        const source = sharedAudioCtx.createBufferSource();
+        source.buffer = decodedAlarmBuffer;
+        source.loop = loop;
+        source.connect(sharedAudioCtx.destination);
+        source.onended = () => {
+          if (activeBufferSource === source) {
+            activeBufferSource = null;
+          }
+        };
+        source.start(0);
+        activeBufferSource = source;
+        return;
+      }
     }
 
-    // Pakai rantai ber-booster HANYA jika AudioContext benar-benar sudah "running".
-    // Jika masih suspended, suara akan bisu -> gunakan audio polos tanpa booster.
-    if (boostedAudio && (!boostedCtx || boostedCtx.state === 'running')) {
-      const audio = boostedAudio;
-      audio.loop = loop;
-      audio.currentTime = 0;
-      activeAudioElement = audio;
-      audio.play().catch(() => {
-        // Fallback synthesizer jika browser memblokir file atau file belum termuat
-        playFallbackSynthAlarm();
-      });
-      return;
-    }
-
-    // Coba bangunkan AudioContext untuk alarm berikutnya
-    if (boostedCtx && boostedCtx.state !== 'running') {
-      boostedCtx.resume().catch(() => {});
-    }
-
-    const audio = new Audio('/alarm.wav');
-    audio.loop = loop;
+    // Prioritas 2: Putar elemen HTMLAudioElement `/alarm.wav` yang sudah di-unlock
+    const audio = unlockedAudioEl || new Audio('/alarm.wav');
+    audio.muted = false;
     audio.volume = 1.0;
+    audio.loop = loop;
+    audio.currentTime = 0;
     activeAudioElement = audio;
-    audio.play().catch(() => {
-      playFallbackSynthAlarm();
-    });
+    audio.play().catch(() => {});
   } catch (err) {
     console.error('Gagal membunyikan alarm.wav:', err);
   }
@@ -116,45 +142,24 @@ export function playViolationAlarm(loop = true): void {
 
 export function stopViolationAlarm(): void {
   try {
+    if (activeBufferSource) {
+      try {
+        activeBufferSource.onended = null;
+        activeBufferSource.stop();
+        activeBufferSource.disconnect();
+      } catch {}
+      activeBufferSource = null;
+    }
+
     if (activeAudioElement) {
       activeAudioElement.pause();
       activeAudioElement.currentTime = 0;
-      // Elemen ber-booster dipakai ulang; hanya elemen polos yang dilepas
-      if (activeAudioElement !== boostedAudio) {
+      if (activeAudioElement !== unlockedAudioEl) {
         activeAudioElement.src = '';
       }
       activeAudioElement = null;
     }
   } catch {
     // Abaikan error saat menghentikan audio
-  }
-}
-
-function playFallbackSynthAlarm(): void {
-  try {
-    const AudioContextClass = getAudioContextClass();
-    if (!AudioContextClass) return;
-    // Pakai context yang sudah di-unlock bila tersedia (context baru bisa ter-suspend)
-    const reuseCtx = boostedCtx && boostedCtx.state === 'running' ? boostedCtx : null;
-    const audioCtx = reuseCtx || new AudioContextClass();
-    const oscillator = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
-
-    oscillator.type = 'sawtooth';
-    oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
-    oscillator.frequency.setValueAtTime(660, audioCtx.currentTime + 0.25);
-    oscillator.frequency.setValueAtTime(880, audioCtx.currentTime + 0.5);
-    gainNode.gain.setValueAtTime(1.0, audioCtx.currentTime);
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-
-    oscillator.start();
-    setTimeout(() => {
-      oscillator.stop();
-      if (!reuseCtx) audioCtx.close().catch(() => {});
-    }, 1000);
-  } catch {
-    // Abaikan
   }
 }
