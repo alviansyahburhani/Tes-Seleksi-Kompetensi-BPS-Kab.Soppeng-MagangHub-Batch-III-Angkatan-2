@@ -202,7 +202,7 @@ export default function ParticipantLobbyView({
                     <strong className="font-semibold text-slate-900">Akses Ujian:</strong> Untuk memulai Tes Seleksi Kompetensi, peserta wajib menunggu persetujuan akses (<em>approval</em>) terlebih dahulu dari Admin Ruangan.
                   </li>
                   <li>
-                    <strong className="font-semibold text-slate-900">Durasi Pengerjaan:</strong> Waktu pengerjaan Tes Seleksi Kompetensi adalah <strong className="font-semibold text-slate-900">60 menit</strong> dan akan dihitung mundur secara otomatis sesaat setelah peserta menekan tombol <strong className="font-semibold text-slate-900">&quot;Mulai Ujian Sekarang&quot;</strong>.
+                    <strong className="font-semibold text-slate-900">Durasi Pengerjaan:</strong> Waktu pengerjaan Tes Seleksi Kompetensi adalah <strong className="font-semibold text-slate-900">120 menit</strong> dan akan dihitung mundur secara otomatis sesaat setelah peserta menekan tombol <strong className="font-semibold text-slate-900">&quot;Mulai Ujian Sekarang&quot;</strong>.
                   </li>
                   <li>
                     <strong className="font-semibold text-slate-900">Pengumpulan Tugas Praktik:</strong> Hasil pengerjaan soal Praktik Kompetensi wajib dikumpulkan dalam bentuk tautan (<em>link</em>) dengan pengaturan akses publik (<strong className="font-semibold text-slate-900">&quot;Anyone with the link&quot;</strong> atau <strong className="font-semibold text-slate-900">&quot;Siapa saja yang memiliki link dapat melihat&quot;</strong>).
@@ -690,7 +690,7 @@ export default function ParticipantLobbyView({
                           Tes Seleksi Kompetensi
                         </h2>
                         <p className="text-xs font-semibold text-[#0284C7] mt-0.5">
-                          Durasi Pengerjaan 60 Menit
+                          Durasi Pengerjaan 120 Menit
                         </p>
                       </div>
                     </div>
@@ -701,7 +701,7 @@ export default function ParticipantLobbyView({
                       </p>
                     ) : kompetensiApproved ? (
                       <p className="text-xs text-slate-700 leading-relaxed">
-                        Admin telah menyetujui akses ujian Anda! Waktu <strong className="font-semibold text-slate-900">60 Menit</strong> baru akan dihitung saat Anda menekan tombol <strong className="font-semibold text-slate-900">&quot;Mulai Ujian Sekarang&quot;</strong> di bawah ini.
+                        Admin telah menyetujui akses ujian Anda! Waktu <strong className="font-semibold text-slate-900">120 Menit</strong> baru akan dihitung saat Anda menekan tombol <strong className="font-semibold text-slate-900">&quot;Mulai Ujian Sekarang&quot;</strong> di bawah ini.
                       </p>
                     ) : (
                       <p className="text-xs text-slate-600 leading-relaxed">
@@ -755,9 +755,9 @@ export default function ParticipantLobbyView({
                       )}
                       <span>
                         {startingExam
-                          ? 'Menyiapkan Soal & Timer 60 Menit...'
+                          ? 'Menyiapkan Soal & Timer 120 Menit...'
                           : kompetensiApproved
-                            ? 'Mulai Ujian Sekarang (60 Menit)'
+                            ? 'Mulai Ujian Sekarang (120 Menit)'
                             : 'Menunggu Approve Admin Ruangan...'}
                       </span>
                     </button>

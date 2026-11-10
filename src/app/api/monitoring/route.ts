@@ -4,7 +4,11 @@ import { SHEET_NAMES } from '@/constants/exam';
 import { getActiveViolationAlerts } from '@/lib/violationAlertStore';
 import { getCachedMonitoringRows, invalidateMonitoringCache } from '@/lib/sheetsCache';
 import {
+  clearParticipantServerState,
+  getOrAssignAttendanceQueue,
   getPendingAccountResetRequests,
+  getServerParticipantSession,
+  hasParticipantExamMemory,
   isKompetensiApproved,
   resolveAccountResetRequest,
   sanitizeSheetRow,
@@ -50,18 +54,36 @@ export async function GET(request: Request) {
         const statusWawancara = (row?.[10] || '').toString().trim();
         const statusKelulusan = (row?.[11] || '').toString().trim();
 
-        if (!namaPeserta || !emailPeserta || !teleponPeserta || !posisiDilamar) return null;
+        if (!namaPeserta || !emailPeserta || !teleponPeserta || !posisiDilamar) {
+          if (!namaPeserta && emailPeserta) {
+            clearParticipantServerState(rowNumber, emailPeserta, '');
+          }
+          return null;
+        }
+
+        if (!waktuMulai && !statusUjian && hasParticipantExamMemory(rowNumber, emailPeserta, namaPeserta)) {
+          clearParticipantServerState(rowNumber, emailPeserta, namaPeserta);
+        }
 
         // Parse "5 / 20 Soal" menjadi angka terjawab & totalSoal
         const matchProgress = progressStr.match(/(\d+)\s*\/\s*(\d+)/);
         const terjawab = matchProgress ? parseInt(matchProgress[1], 10) : 0;
         const totalSoal = matchProgress ? parseInt(matchProgress[2], 10) : 0;
 
-        // Parse "MM:SS" menjadi total detik
+        // Parse "MM:SS" menjadi total detik, atau gunakan sisa detik real-time dari sesi server
+        // agar countdown di /monitoring tidak loncat mundur saat sinkronisasi 10 detik
         const matchTime = sisaWaktu.match(/(\d+):(\d+)/);
-        const sisaDetik = matchTime
+        let sisaDetik = matchTime
           ? parseInt(matchTime[1], 10) * 60 + parseInt(matchTime[2], 10)
           : 0;
+
+        const isFinished = statusUjian.toUpperCase().includes('SELESAI');
+        if (!isFinished) {
+          const activeSession = getServerParticipantSession(emailPeserta, namaPeserta);
+          if (activeSession && activeSession.endTimeMs) {
+            sisaDetik = Math.max(0, Math.floor((activeSession.endTimeMs - Date.now()) / 1000));
+          }
+        }
 
         const kompetensiApproved = isKompetensiApproved(
           rowNumber,
@@ -76,9 +98,13 @@ export async function GET(request: Request) {
           upperWawancara.includes('SELESAI') ||
           upperWawancara.includes('APPROVED');
 
+        const queueInfo = getOrAssignAttendanceQueue(rowNumber, emailPeserta);
+
         return {
           id: idx + 1,
           rowNumber,
+          nomorAntrean: queueInfo.order,
+          waktuHadir: queueInfo.waktuHadir,
           namaPeserta,
           emailPeserta,
           teleponPeserta,
@@ -138,7 +164,7 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const { type, rowNumber, namaPeserta, rows, requestId, action } = await request.json();
+    const { type, rowNumber, emailPeserta, namaPeserta, rows, requestId, action } = await request.json();
 
     // Approve / Reject Permohonan Ganti Akun Peserta
     if (type === 'RESOLVE_RESET_ACCOUNT') {
@@ -150,17 +176,17 @@ export async function PATCH(request: Request) {
     // Tidak menulis ke sel E-I agar kolom ujian tetap kosong sampai peserta klik "Mulai Ujian"!
     if (type === 'APPROVE_KOMPETENSI') {
       if (Array.isArray(rows) && rows.length > 0) {
-        rows.forEach((item: { rowNumber: number; namaPeserta?: string }) => {
-          setKompetensiApproved(item.rowNumber, undefined, item.namaPeserta, true);
+        rows.forEach((item: { rowNumber: number; emailPeserta?: string; namaPeserta?: string }) => {
+          setKompetensiApproved(item.rowNumber, item.emailPeserta, item.namaPeserta, true);
         });
       } else if (rowNumber) {
-        setKompetensiApproved(rowNumber, undefined, namaPeserta, true);
+        setKompetensiApproved(rowNumber, emailPeserta, namaPeserta, true);
       }
       return NextResponse.json({ success: true });
     }
 
     if (type === 'REVOKE_KOMPETENSI' && rowNumber) {
-      setKompetensiApproved(rowNumber, undefined, namaPeserta, false);
+      setKompetensiApproved(rowNumber, emailPeserta, namaPeserta, false);
       return NextResponse.json({ success: true });
     }
 

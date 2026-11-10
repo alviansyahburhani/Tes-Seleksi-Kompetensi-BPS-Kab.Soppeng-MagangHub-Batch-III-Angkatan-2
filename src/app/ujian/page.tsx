@@ -249,6 +249,9 @@ export default function UjianPage() {
     localStorage.removeItem(EXAM_SESSION_STORAGE_KEY);
     localStorage.removeItem(PARTICIPANT_LOBBY_STORAGE_KEY);
     localStorage.removeItem(TERMS_ACCEPTED_STORAGE_KEY);
+    try {
+      sessionStorage.removeItem('bps_temp_lobby_login_v1');
+    } catch {}
     setIsSessionReady(false);
     setIsFinished(false);
     router.replace('/login');

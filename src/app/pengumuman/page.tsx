@@ -108,6 +108,12 @@ export default function PengumumanPage() {
       fetch(`/api/start?${params.toString()}`, { cache: 'no-store' })
         .then(async (res) => {
           if (res.status === 404) {
+            localStorage.removeItem(EXAM_SESSION_STORAGE_KEY);
+            localStorage.removeItem(PARTICIPANT_LOBBY_STORAGE_KEY);
+            localStorage.removeItem(TERMS_ACCEPTED_STORAGE_KEY);
+            try {
+              sessionStorage.removeItem('bps_temp_lobby_login_v1');
+            } catch {}
             router.replace('/login');
             return null;
           }
@@ -156,6 +162,12 @@ export default function PengumumanPage() {
 
       const res = await fetch(`/api/start?${params.toString()}`, { cache: 'no-store' });
       if (res.status === 404) {
+        localStorage.removeItem(EXAM_SESSION_STORAGE_KEY);
+        localStorage.removeItem(PARTICIPANT_LOBBY_STORAGE_KEY);
+        localStorage.removeItem(TERMS_ACCEPTED_STORAGE_KEY);
+        try {
+          sessionStorage.removeItem('bps_temp_lobby_login_v1');
+        } catch {}
         router.replace('/login');
         return;
       }
